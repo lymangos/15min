@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>15分钟生活圈分析系统</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <header class="sidebar-header">
+                <h1>🏘️ 15分钟生活圈</h1>
+                <p class="subtitle">城市服务可达性分析系统</p>
+            </header>
+
+            <div class="sidebar-content">
+                <!-- 操作提示 -->
+                <section class="panel">
+                    <h3>📍 操作说明</h3>
+                    <p>点击地图上任意位置，系统将自动分析该点的15分钟生活圈服务覆盖情况。</p>
+                </section>
+
+                <!-- 当前坐标 -->
+                <section class="panel">
+                    <h3>📌 当前位置</h3>
+                    <div id="current-location">
+                        <p class="placeholder">请在地图上点击选择位置</p>
+                    </div>
+                </section>
+
+                <!-- 分析结果 -->
+                <section class="panel result-panel" id="result-panel" style="display: none;">
+                    <h3>📊 分析结果</h3>
+                    
+                    <!-- 总体评分 -->
+                    <div class="score-card" id="score-card">
+                        <div class="score-circle">
+                            <span class="score-value" id="total-score">--</span>
+                            <span class="score-label">分</span>
+                        </div>
+                        <div class="grade-badge" id="grade-badge">-</div>
+                    </div>
+                    
+                    <p class="summary" id="result-summary"></p>
+
+                    <!-- 分类评分 -->
+                    <div class="category-scores" id="category-scores">
+                        <!-- 动态生成 -->
+                    </div>
+
+                    <!-- 改进建议 -->
+                    <div class="suggestions" id="suggestions">
+                        <h4>💡 改进建议</h4>
+                        <ul id="suggestion-list"></ul>
+                    </div>
+                </section>
+
+                <!-- 图例 -->
+                <section class="panel">
+                    <h3>🎨 图例</h3>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: rgba(46, 204, 113, 0.4);"></span>
+                            <span>5分钟步行圈</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: rgba(52, 152, 219, 0.4);"></span>
+                            <span>10分钟步行圈</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: rgba(155, 89, 182, 0.4);"></span>
+                            <span>15分钟步行圈</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <footer class="sidebar-footer">
+                <p>© 2026 15分钟生活圈项目</p>
+                <p>基于 OpenStreetMap 数据</p>
+            </footer>
+        </aside>
+
+        <!-- 地图容器 -->
+        <main class="map-container">
+            <div id="map"></div>
+            
+            <!-- 加载指示器 -->
+            <div class="loading-overlay" id="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>正在分析...</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
