@@ -817,35 +817,272 @@ body {
    响应式设计
    ============================================ */
 
+/* 移动端顶部栏 - 默认隐藏 */
+.mobile-header {
+    display: none;
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: white;
+    padding: 12px 16px;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 1001;
+}
+
+.mobile-header h1 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.toggle-sidebar-btn,
+.mobile-locate-btn,
+.close-sidebar-btn {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-sidebar-btn:hover,
+.mobile-locate-btn:hover,
+.close-sidebar-btn:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+.close-sidebar-btn {
+    display: none;
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* 移动端遮罩层 */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+}
+
+.sidebar-overlay.active {
+    display: block;
+}
+
 @media (max-width: 768px) {
+    /* 显示移动端顶部栏 */
+    .mobile-header {
+        display: flex;
+    }
+    
     .app-container {
         flex-direction: column;
     }
     
+    /* 侧边栏改为抽屉式 */
     .sidebar {
-        width: 100%;
-        height: auto;
-        max-height: 40vh;
+        position: fixed;
+        top: 0;
+        left: -100%;
+        width: 85%;
+        max-width: 320px;
+        height: 100vh;
+        max-height: 100vh;
+        z-index: 1000;
+        transition: left 0.3s ease;
+        box-shadow: 4px 0 20px rgba(0,0,0,0.3);
     }
     
+    .sidebar.open {
+        left: 0;
+    }
+    
+    .sidebar-header {
+        position: relative;
+        padding: 20px 16px;
+    }
+    
+    .sidebar-header h1 {
+        font-size: 1.3rem;
+        padding-right: 40px;
+    }
+    
+    .close-sidebar-btn {
+        display: flex;
+    }
+    
+    /* 地图占满剩余空间 */
     .map-container {
-        height: 60vh;
+        flex: 1;
+        height: calc(100vh - 64px);
     }
     
-    .speed-presets {
-        flex-wrap: wrap;
+    /* 隐藏桌面端侧边栏头部标题（移动端用顶栏） */
+    
+    /* 面板样式优化 */
+    .panel {
+        padding: 12px;
+        margin-bottom: 12px;
     }
     
-    .speed-preset {
-        flex: 1 0 30%;
+    .panel h3 {
+        font-size: 0.95rem;
+        margin-bottom: 10px;
     }
     
+    /* 搜索框优化 */
     .search-container {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
     }
     
     #search-input {
-        flex: 1 0 100%;
-        margin-bottom: 8px;
+        flex: 1;
+        min-width: 0;
+        font-size: 16px; /* 防止 iOS 自动缩放 */
+    }
+    
+    .search-btn,
+    .locate-btn {
+        width: 44px;
+        height: 44px;
+        flex-shrink: 0;
+    }
+    
+    /* 速度预设按钮 */
+    .speed-presets {
+        flex-wrap: nowrap;
+        gap: 6px;
+    }
+    
+    .speed-preset {
+        flex: 1;
+        padding: 10px 8px;
+        font-size: 0.85rem;
+    }
+    
+    /* POI筛选列表优化 */
+    .poi-filter-list {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    
+    .filter-checkbox {
+        font-size: 0.85rem;
+        padding: 8px;
+    }
+    
+    /* 评分卡片优化 */
+    .score-card {
+        padding: 16px;
+    }
+    
+    .score-circle {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .score-value {
+        font-size: 1.8rem;
+    }
+    
+    /* 雷达图容器 */
+    .radar-chart-container {
+        margin: 12px 0;
+    }
+    
+    #radar-chart {
+        height: 220px !important;
+    }
+    
+    /* 分类评分优化 */
+    .category-scores {
+        gap: 8px;
+    }
+    
+    .category-score-item {
+        padding: 10px;
+    }
+    
+    /* 图例优化 */
+    .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .legend-item {
+        flex: 1 0 45%;
+        font-size: 0.85rem;
+    }
+    
+    /* POI 弹出框优化 */
+    .leaflet-popup-content {
+        min-width: 200px;
+        max-width: 280px;
+    }
+    
+    .poi-popup {
+        padding: 10px;
+    }
+    
+    .poi-popup h4 {
+        font-size: 1rem;
+    }
+    
+    /* 底部留出安全区域（iPhone等） */
+    .sidebar-footer {
+        padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    }
+}
+
+/* 小屏手机进一步优化 */
+@media (max-width: 375px) {
+    .mobile-header h1 {
+        font-size: 1rem;
+    }
+    
+    .sidebar {
+        width: 90%;
+    }
+    
+    .panel h3 {
+        font-size: 0.9rem;
+    }
+    
+    .speed-preset {
+        font-size: 0.8rem;
+        padding: 8px 4px;
+    }
+    
+    .poi-filter-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 横屏模式优化 */
+@media (max-width: 768px) and (orientation: landscape) {
+    .sidebar {
+        width: 50%;
+        max-width: 300px;
+    }
+    
+    .map-container {
+        height: 100vh;
+    }
+    
+    .mobile-header {
+        padding: 8px 16px;
     }
 }

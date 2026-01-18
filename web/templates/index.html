@@ -2,7 +2,9 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>15分钟生活圈分析系统</title>
     
     <!-- Leaflet CSS -->
@@ -13,11 +15,19 @@
 </head>
 <body>
     <div class="app-container">
+        <!-- 移动端顶部栏 -->
+        <header class="mobile-header">
+            <button id="toggle-sidebar" class="toggle-sidebar-btn">☰</button>
+            <h1>🏘️ 15分钟生活圈</h1>
+            <button id="mobile-locate-btn" class="mobile-locate-btn">📍</button>
+        </header>
+
         <!-- 侧边栏 -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <header class="sidebar-header">
                 <h1>🏘️ 15分钟生活圈</h1>
                 <p class="subtitle">城市服务可达性分析系统</p>
+                <button id="close-sidebar" class="close-sidebar-btn">✕</button>
             </header>
 
             <div class="sidebar-content">
@@ -183,6 +193,9 @@
                 <p>基于 OpenStreetMap 数据</p>
             </footer>
         </aside>
+
+        <!-- 移动端侧边栏遮罩 -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
         <!-- 地图容器 -->
         <main class="map-container">

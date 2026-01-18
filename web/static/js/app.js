@@ -107,7 +107,9 @@ const state = {
     currentPOIs: null,       // 当前 POI 数据缓存
     currentResult: null,     // 当前分析结果缓存
     radarChart: null,        // ECharts 雷达图实例
-    cityBoundsRect: null     // 城市边界矩形
+    cityBoundsRect: null,    // 城市边界矩形
+    baseLayers: null,        // 底图图层
+    isMobile: false          // 是否移动端
 };
 
 // ============================================
@@ -115,11 +117,73 @@ const state = {
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
+    // 检测移动端
+    state.isMobile = window.innerWidth <= 768;
+    
     initMap();
     initEventListeners();
     initRadarChart();
     initCitySelector();
+    initMobileControls();
 });
+
+/**
+ * 初始化移动端控制
+ */
+function initMobileControls() {
+    const toggleBtn = document.getElementById('toggle-sidebar');
+    const closeBtn = document.getElementById('close-sidebar');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const mobileLocateBtn = document.getElementById('mobile-locate-btn');
+    
+    // 打开侧边栏
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.add('open');
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+    }
+    
+    // 关闭侧边栏
+    const closeSidebar = () => {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    };
+    
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeSidebar);
+    }
+    
+    if (overlay) {
+        overlay.addEventListener('click', closeSidebar);
+    }
+    
+    // 移动端定位按钮
+    if (mobileLocateBtn) {
+        mobileLocateBtn.addEventListener('click', handleLocate);
+    }
+    
+    // 分析完成后自动关闭侧边栏（移动端）
+    window.closeSidebarAfterAnalysis = () => {
+        if (state.isMobile && sidebar.classList.contains('open')) {
+            closeSidebar();
+        }
+    };
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', () => {
+        state.isMobile = window.innerWidth <= 768;
+        // 桌面端确保侧边栏可见
+        if (!state.isMobile) {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    });
+}
 
 /**
  * 初始化地图
@@ -131,14 +195,33 @@ function initMap() {
     // 创建地图，设置边界限制
     state.map = L.map('map', {
         maxBounds: bounds.pad(0.1),  // 稍微扩展边界，让边缘可见
-        maxBoundsViscosity: 1.0      // 完全限制在边界内
+        maxBoundsViscosity: 1.0,     // 完全限制在边界内
+        tap: true,                   // 移动端点击支持
+        touchZoom: true,             // 触摸缩放
+        bounceAtZoomLimits: false    // 缩放限制时不反弹
     }).setView(CONFIG.defaultCenter, CONFIG.defaultZoom);
     
-    // 添加底图
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    // 添加底图 - 使用高德瓦片（国内访问更快）
+    // 备选：OSM 官方瓦片
+    const amapTile = L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+        subdomains: ['1', '2', '3', '4'],
+        maxZoom: 18,
+        attribution: '&copy; 高德地图'
+    });
+    
+    const osmTile = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 19
-    }).addTo(state.map);
+    });
+    
+    // 默认使用高德瓦片（国内更快）
+    amapTile.addTo(state.map);
+    
+    // 保存瓦片图层引用，方便切换
+    state.baseLayers = {
+        '高德地图': amapTile,
+        'OpenStreetMap': osmTile
+    };
     
     // 添加城市边界可视化
     updateCityBoundsRect();
@@ -792,6 +875,11 @@ function renderEvaluationResult(result) {
     
     // 显示结果面板
     document.getElementById('result-panel').style.display = 'block';
+    
+    // 移动端：分析完成后自动关闭侧边栏，让用户看到地图
+    if (typeof window.closeSidebarAfterAnalysis === 'function') {
+        window.closeSidebarAfterAnalysis();
+    }
     
     // 总分
     const scoreEl = document.getElementById('total-score');
