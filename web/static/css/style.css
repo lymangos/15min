@@ -358,6 +358,170 @@ body {
 }
 
 /* ============================================
+   POI 筛选面板
+   ============================================ */
+
+.poi-filter-controls {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #eee;
+}
+
+.poi-filter-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.filter-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 0.9rem;
+}
+
+.filter-checkbox:hover {
+    background: #f8f9fa;
+}
+
+.filter-checkbox input[type="checkbox"] {
+    display: none;
+}
+
+.filter-checkbox .checkmark {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.filter-checkbox input[type="checkbox"]:checked + .checkmark {
+    background: currentColor;
+    border-color: currentColor;
+}
+
+.filter-checkbox input[type="checkbox"]:checked + .checkmark::after {
+    content: '✓';
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* ============================================
+   步行速度配置
+   ============================================ */
+
+.speed-presets {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.speed-preset {
+    flex: 1;
+    padding: 8px 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.speed-preset:hover {
+    border-color: var(--primary-color);
+    background: #f0f8ff;
+}
+
+.speed-preset.active {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: white;
+}
+
+.speed-custom {
+    margin-bottom: 12px;
+}
+
+.speed-custom label {
+    display: block;
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.speed-input-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.speed-input-group input[type="range"] {
+    flex: 1;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #ddd;
+    border-radius: 3px;
+    outline: none;
+}
+
+.speed-input-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.speed-input-group input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.speed-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    min-width: 30px;
+}
+
+.speed-unit {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.speed-hint {
+    font-size: 0.8rem;
+    color: #888;
+    background: #f8f9fa;
+    padding: 8px 12px;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.speed-hint strong {
+    color: var(--primary-color);
+}
+
+/* ============================================
    响应式设计
    ============================================ */
 
@@ -374,5 +538,13 @@ body {
     
     .map-container {
         height: 60vh;
+    }
+    
+    .speed-presets {
+        flex-wrap: wrap;
+    }
+    
+    .speed-preset {
+        flex: 1 0 30%;
     }
 }

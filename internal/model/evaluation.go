@@ -8,12 +8,24 @@ type EvaluationRequest struct {
 	Lat float64 `json:"lat" binding:"required"`
 	// 时间阈值（默认15分钟）
 	TimeThreshold int `json:"time_threshold"`
+	// 步行速度（km/h，默认5.0）
+	WalkSpeed float64 `json:"walk_speed"`
 }
 
 // Validate 验证请求参数
 func (r *EvaluationRequest) Validate() {
 	if r.TimeThreshold <= 0 {
 		r.TimeThreshold = 15
+	}
+	if r.WalkSpeed <= 0 {
+		r.WalkSpeed = 5.0
+	}
+	// 限制步行速度范围 3.0 - 7.0 km/h
+	if r.WalkSpeed < 3.0 {
+		r.WalkSpeed = 3.0
+	}
+	if r.WalkSpeed > 7.0 {
+		r.WalkSpeed = 7.0
 	}
 }
 

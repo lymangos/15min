@@ -55,7 +55,20 @@ const state = {
     currentMarker: null,
     isochroneLayer: null,
     poiLayer: null,
-    selectedLocation: null
+    selectedLocation: null,
+    // 新增状态
+    walkSpeed: 5.0,          // 步行速度 km/h
+    categoryFilters: {       // POI 分类筛选状态
+        medical: true,
+        education: true,
+        elderly: true,
+        commerce: true,
+        culture: true,
+        public: true,
+        transport: true,
+        child: true
+    },
+    currentPOIs: null        // 当前 POI 数据缓存
 };
 
 // ============================================
@@ -95,7 +108,130 @@ function initMap() {
  * 初始化事件监听
  */
 function initEventListeners() {
-    // 可以添加其他事件监听器
+    // 步行速度滑块
+    const speedSlider = document.getElementById('walk-speed');
+    if (speedSlider) {
+        speedSlider.addEventListener('input', handleSpeedChange);
+    }
+    
+    // 速度预设按钮
+    document.querySelectorAll('.speed-preset').forEach(btn => {
+        btn.addEventListener('click', handleSpeedPreset);
+    });
+    
+    // POI 筛选复选框
+    document.querySelectorAll('#poi-filter-list .filter-checkbox input').forEach(checkbox => {
+        checkbox.addEventListener('change', handleCategoryFilter);
+    });
+    
+    // 全选/取消全选
+    const filterAll = document.getElementById('filter-all');
+    if (filterAll) {
+        filterAll.addEventListener('change', handleFilterAll);
+    }
+}
+
+/**
+ * 处理步行速度变化
+ */
+function handleSpeedChange(e) {
+    const speed = parseFloat(e.target.value);
+    state.walkSpeed = speed;
+    
+    // 更新显示
+    document.getElementById('speed-display').textContent = speed.toFixed(1);
+    
+    // 计算15分钟步行距离
+    const distance = Math.round(speed * 1000 / 60 * 15);
+    document.getElementById('walk-distance').textContent = distance;
+    
+    // 更新预设按钮状态
+    document.querySelectorAll('.speed-preset').forEach(btn => {
+        btn.classList.remove('active');
+        if (parseFloat(btn.dataset.speed) === speed) {
+            btn.classList.add('active');
+        }
+    });
+}
+
+/**
+ * 处理速度预设按钮点击
+ */
+function handleSpeedPreset(e) {
+    const speed = parseFloat(e.target.dataset.speed);
+    state.walkSpeed = speed;
+    
+    // 更新滑块
+    const slider = document.getElementById('walk-speed');
+    slider.value = speed;
+    
+    // 更新显示
+    document.getElementById('speed-display').textContent = speed.toFixed(1);
+    const distance = Math.round(speed * 1000 / 60 * 15);
+    document.getElementById('walk-distance').textContent = distance;
+    
+    // 更新按钮状态
+    document.querySelectorAll('.speed-preset').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    e.target.classList.add('active');
+}
+
+/**
+ * 处理 POI 分类筛选
+ */
+function handleCategoryFilter(e) {
+    const checkbox = e.target;
+    const label = checkbox.closest('.filter-checkbox');
+    const category = label.dataset.category;
+    
+    if (category) {
+        state.categoryFilters[category] = checkbox.checked;
+        
+        // 重新渲染 POI（使用缓存数据）
+        if (state.currentPOIs) {
+            renderPOIs(state.currentPOIs);
+        }
+        
+        // 更新全选复选框状态
+        updateFilterAllCheckbox();
+    }
+}
+
+/**
+ * 处理全选/取消全选
+ */
+function handleFilterAll(e) {
+    const checked = e.target.checked;
+    
+    // 更新所有分类筛选状态
+    Object.keys(state.categoryFilters).forEach(cat => {
+        state.categoryFilters[cat] = checked;
+    });
+    
+    // 更新所有复选框
+    document.querySelectorAll('#poi-filter-list .filter-checkbox input').forEach(checkbox => {
+        checkbox.checked = checked;
+    });
+    
+    // 重新渲染 POI
+    if (state.currentPOIs) {
+        renderPOIs(state.currentPOIs);
+    }
+}
+
+/**
+ * 更新全选复选框状态
+ */
+function updateFilterAllCheckbox() {
+    const allChecked = Object.values(state.categoryFilters).every(v => v);
+    const noneChecked = Object.values(state.categoryFilters).every(v => !v);
+    const filterAllCheckbox = document.getElementById('filter-all');
+    
+    if (filterAllCheckbox) {
+        filterAllCheckbox.checked = allChecked;
+        filterAllCheckbox.indeterminate = !allChecked && !noneChecked;
+    }
 }
 
 // ============================================
@@ -162,7 +298,12 @@ async function analyzePoint(lng, lat) {
         const response = await fetch(`${CONFIG.apiBase}/analyze`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lng, lat, time_threshold: 15 })
+            body: JSON.stringify({ 
+                lng, 
+                lat, 
+                time_threshold: 15,
+                walk_speed: state.walkSpeed  // 使用用户配置的速度
+            })
         });
         
         if (!response.ok) {
@@ -170,6 +311,9 @@ async function analyzePoint(lng, lat) {
         }
         
         const result = await response.json();
+        
+        // 缓存 POI 数据
+        state.currentPOIs = result.pois;
         
         // 渲染结果
         renderIsochrone(result.isochrone);
@@ -214,7 +358,7 @@ function renderIsochrone(geojson) {
 }
 
 /**
- * 渲染 POI
+ * 渲染 POI（支持分类筛选）
  */
 function renderPOIs(geojson) {
     state.poiLayer.clearLayers();
@@ -224,6 +368,12 @@ function renderPOIs(geojson) {
     geojson.features.forEach(feature => {
         if (feature.properties.type === 'poi') {
             const { category, name, sub_type } = feature.properties;
+            
+            // 检查该分类是否被筛选显示
+            if (!state.categoryFilters[category]) {
+                return; // 跳过被隐藏的分类
+            }
+            
             const [lng, lat] = feature.geometry.coordinates;
             
             const color = CONFIG.categoryColors[category] || '#666';
@@ -237,17 +387,61 @@ function renderPOIs(geojson) {
                 fillOpacity: 0.8
             });
             
+            // 计算距离和步行时间
+            let distanceInfo = '';
+            if (state.selectedLocation) {
+                const distance = calculateDistance(
+                    state.selectedLocation.lat, 
+                    state.selectedLocation.lng, 
+                    lat, lng
+                );
+                const walkTime = (distance / (state.walkSpeed * 1000 / 60)).toFixed(1);
+                distanceInfo = `<p>距离: ${Math.round(distance)}米 (约${walkTime}分钟)</p>`;
+            }
+            
             marker.bindPopup(`
                 <div class="poi-popup">
                     <h4>${icon} ${name || '未命名'}</h4>
-                    <p><span class="category-tag">${getCategoryName(category)}</span></p>
+                    <p><span class="category-tag" style="background: ${color}">${getCategoryName(category)}</span></p>
                     <p>类型: ${getSubTypeName(sub_type)}</p>
+                    ${distanceInfo}
                 </div>
             `);
             
             marker.addTo(state.poiLayer);
         }
     });
+    
+    // 更新 POI 计数显示
+    updatePOICount();
+}
+
+/**
+ * 更新 POI 计数显示
+ */
+function updatePOICount() {
+    let visibleCount = 0;
+    state.poiLayer.eachLayer(() => visibleCount++);
+    
+    // 如果有计数显示元素，更新它
+    const countEl = document.getElementById('poi-count');
+    if (countEl) {
+        countEl.textContent = visibleCount;
+    }
+}
+
+/**
+ * 计算两点间距离（米）
+ */
+function calculateDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371000; // 地球半径（米）
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
 }
 
 /**

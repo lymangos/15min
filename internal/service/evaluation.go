@@ -28,7 +28,7 @@ func NewEvaluationService(db *database.DB, poiService *POIService) *EvaluationSe
 func (s *EvaluationService) Evaluate(ctx context.Context, req *model.EvaluationRequest) (*model.EvaluationResult, error) {
 	req.Validate()
 
-	// 调用数据库评价函数
+	// 调用数据库评价函数（使用用户配置的步行速度）
 	query := `
 		SELECT 
 			total_score,
@@ -40,10 +40,10 @@ func (s *EvaluationService) Evaluate(ctx context.Context, req *model.EvaluationR
 			weighted_score,
 			poi_count,
 			details
-		FROM evaluate_life_circle($1, $2, 5.0)
+		FROM evaluate_life_circle($1, $2, $3)
 	`
 
-	rows, err := s.db.Pool.Query(ctx, query, req.Lng, req.Lat)
+	rows, err := s.db.Pool.Query(ctx, query, req.Lng, req.Lat, req.WalkSpeed)
 	if err != nil {
 		return nil, fmt.Errorf("evaluate: %w", err)
 	}
@@ -109,20 +109,20 @@ func (s *EvaluationService) Evaluate(ctx context.Context, req *model.EvaluationR
 	// 生成改进建议
 	result.Suggestions = s.generateSuggestions(result.CategoryScores)
 
-	// 获取等时圈 GeoJSON
+	// 获取等时圈 GeoJSON（使用用户配置的步行速度）
 	isoService := NewIsochroneService(s.db)
 	isoReq := &model.IsochroneRequest{
 		Lng:            req.Lng,
 		Lat:            req.Lat,
 		TimeThresholds: []int{5, 10, 15},
-		WalkSpeed:      5.0,
+		WalkSpeed:      req.WalkSpeed,
 	}
 	if isoFC, err := isoService.CalculateAsGeoJSON(ctx, isoReq); err == nil {
 		result.Isochrone = isoFC
 	}
 
-	// 获取 POI GeoJSON
-	if pois, err := s.poiService.QueryInIsochrone(ctx, req.Lng, req.Lat, req.TimeThreshold, 5.0); err == nil {
+	// 获取 POI GeoJSON（使用用户配置的步行速度）
+	if pois, err := s.poiService.QueryInIsochrone(ctx, req.Lng, req.Lat, req.TimeThreshold, req.WalkSpeed); err == nil {
 		result.POIs = s.poiService.POIsAsGeoJSON(pois)
 	}
 
