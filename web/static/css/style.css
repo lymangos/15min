@@ -603,9 +603,10 @@ body {
     pointer-events: none; /* 所有子 span 都不拦截点击 */
 }
 
+/* 选中状态：使用 CSS 变量或直接设置背景 */
 .filter-checkbox input[type="checkbox"]:checked + .checkmark {
-    background: currentColor;
-    border-color: currentColor;
+    background: var(--check-color, #4a90d9);
+    border-color: var(--check-color, #4a90d9) !important;
 }
 
 .filter-checkbox input[type="checkbox"]:checked + .checkmark::after {

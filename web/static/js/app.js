@@ -104,7 +104,8 @@ const state = {
         transport: true,
         child: true
     },
-    currentPOIs: null,       // 当前 POI 数据缓存
+    currentPOIs: null,       // 当前 POI features 数组（用于统计）
+    currentPOIsGeoJSON: null, // 当前 POI GeoJSON 对象（用于渲染）
     currentResult: null,     // 当前分析结果缓存
     radarChart: null,        // ECharts 雷达图实例
     cityBoundsRect: null,    // 城市边界矩形
@@ -576,9 +577,9 @@ function handleCategoryFilter(e) {
     if (category) {
         state.categoryFilters[category] = checkbox.checked;
         
-        // 重新渲染 POI（使用缓存数据）
-        if (state.currentPOIs) {
-            renderPOIs(state.currentPOIs);
+        // 重新渲染 POI（使用缓存的 GeoJSON 对象）
+        if (state.currentPOIsGeoJSON) {
+            renderPOIs(state.currentPOIsGeoJSON);
         }
         
         // 更新全选复选框状态
@@ -602,9 +603,9 @@ function handleFilterAll(e) {
         checkbox.checked = checked;
     });
     
-    // 重新渲染 POI
-    if (state.currentPOIs) {
-        renderPOIs(state.currentPOIs);
+    // 重新渲染 POI（使用缓存的 GeoJSON 对象）
+    if (state.currentPOIsGeoJSON) {
+        renderPOIs(state.currentPOIsGeoJSON);
     }
 }
 
@@ -707,7 +708,10 @@ async function analyzePoint(lng, lat) {
         
         const result = await response.json();
         
-        // 缓存 POI 数据 (pois 是 GeoJSON 格式，features 是 POI 数组)
+        // 缓存 POI 数据
+        // currentPOIsGeoJSON: 完整的 GeoJSON 对象，用于 renderPOIs
+        // currentPOIs: features 数组，用于 renderPOISourceStats
+        state.currentPOIsGeoJSON = result.pois;
         state.currentPOIs = result.pois && result.pois.features ? result.pois.features : [];
         
         // 渲染结果
