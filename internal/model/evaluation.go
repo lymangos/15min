@@ -89,37 +89,50 @@ type EvaluationStandard struct {
 }
 
 // GetDefaultStandards 返回默认评价标准
+// 注意：子类型必须与数据库中 poi 表的 sub_type 字段匹配
 func GetDefaultStandards() []EvaluationStandard {
 	return []EvaluationStandard{
-		// 医疗卫生
+		// 医疗卫生 (数据库: hospital, pharmacy, clinic, dentist)
 		{Category: "medical", SubType: "clinic", MinCount15: 1, MinCount10: 1, MinCount5: 0, Required: true, BaseScore: 30},
 		{Category: "medical", SubType: "pharmacy", MinCount15: 2, MinCount10: 1, MinCount5: 1, Required: false, BaseScore: 10},
 		{Category: "medical", SubType: "hospital", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 10},
+		{Category: "medical", SubType: "dentist", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 5},
 
-		// 教育设施
+		// 教育设施 (数据库: kindergarten, school, college, university, library)
 		{Category: "education", SubType: "kindergarten", MinCount15: 1, MinCount10: 1, MinCount5: 0, Required: true, BaseScore: 25},
-		{Category: "education", SubType: "primary", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: true, BaseScore: 25},
+		{Category: "education", SubType: "school", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: true, BaseScore: 25},
+		{Category: "education", SubType: "college", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 10},
+		{Category: "education", SubType: "library", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 10},
 
-		// 商业服务
+		// 商业服务 (数据库: supermarket, convenience, marketplace, restaurant, cafe...)
 		{Category: "commerce", SubType: "supermarket", MinCount15: 1, MinCount10: 1, MinCount5: 0, Required: true, BaseScore: 20},
 		{Category: "commerce", SubType: "convenience", MinCount15: 3, MinCount10: 2, MinCount5: 1, Required: false, BaseScore: 10},
-		{Category: "commerce", SubType: "marketplace", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 15},
+		{Category: "commerce", SubType: "marketplace", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 10},
+		{Category: "commerce", SubType: "restaurant", MinCount15: 2, MinCount10: 1, MinCount5: 0, Required: false, BaseScore: 5},
 
-		// 文化体育
+		// 文化体育 (数据库: park, playground, cinema, pitch, garden, sports_centre, fitness_centre, community_centre)
 		{Category: "culture", SubType: "park", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: true, BaseScore: 20},
-		{Category: "culture", SubType: "library", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 10},
-		{Category: "culture", SubType: "sports", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 15},
+		{Category: "culture", SubType: "playground", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 10},
+		{Category: "culture", SubType: "sports_centre", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 10},
+		{Category: "culture", SubType: "community_centre", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 10},
+		{Category: "culture", SubType: "cinema", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 5},
 
-		// 公共服务
-		{Category: "public", SubType: "bank", MinCount15: 1, MinCount10: 1, MinCount5: 0, Required: false, BaseScore: 15},
-		{Category: "public", SubType: "community", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 20},
+		// 公共管理 (数据库: police, post_office, townhall)
+		{Category: "public", SubType: "police", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 15},
+		{Category: "public", SubType: "post_office", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 15},
+		{Category: "public", SubType: "townhall", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 20},
 
-		// 交通设施
-		{Category: "transport", SubType: "bus", MinCount15: 2, MinCount10: 1, MinCount5: 1, Required: true, BaseScore: 25},
-		{Category: "transport", SubType: "subway", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 20},
+		// 交通设施 (数据库: platform, stop_position, station, bus_station, ferry_terminal)
+		{Category: "transport", SubType: "platform", MinCount15: 2, MinCount10: 1, MinCount5: 1, Required: true, BaseScore: 15},
+		{Category: "transport", SubType: "stop_position", MinCount15: 2, MinCount10: 1, MinCount5: 1, Required: false, BaseScore: 10},
+		{Category: "transport", SubType: "station", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 20},
+		{Category: "transport", SubType: "bus_station", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 10},
 
-		// 养老服务
-		{Category: "elderly", SubType: "nursing", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 25},
+		// 养老服务 (数据库: social_facility)
+		{Category: "elderly", SubType: "social_facility", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 25},
+
+		// 托幼托育 (需要高德API补充，数据库无相关数据)
+		{Category: "child", SubType: "nursery", MinCount15: 1, MinCount10: 0, MinCount5: 0, Required: false, BaseScore: 25},
 	}
 }
 
