@@ -8,15 +8,25 @@
 - **POI 统计**: 统计圈内医疗、教育、商业等各类设施
 - **综合评分**: 基于城乡规划标准的服务设施覆盖评价
 - **可视化展示**: 在地图上直观展示分析结果
+- **多城市支持**: 支持杭州、沈阳、诸暨等城市切换
+- **高德API补充**: 自动补充高德POI数据，提升数据覆盖
+
+## 🏙️ 支持城市
+
+| 城市 | 覆盖范围 |
+|------|----------|
+| 杭州 | 主城区 |
+| 沈阳 | 核心城区 |
+| 诸暨 | 市区 |
 
 ## 🛠 技术栈
 
 | 层级 | 技术 |
 |------|------|
-| 后端 | Go + Gin |
+| 后端 | Go 1.21 + Gin |
 | 数据库 | PostgreSQL + PostGIS + pgRouting |
-| 前端 | HTML/CSS/JS + Leaflet |
-| 数据源 | OpenStreetMap |
+| 前端 | HTML/CSS/JS + Leaflet + ECharts |
+| 数据源 | OpenStreetMap + 高德地图API |
 
 ## 📁 项目结构
 
@@ -29,8 +39,7 @@
 │   ├── config/          # 配置管理
 │   ├── database/        # 数据库连接
 │   ├── model/           # 数据模型
-│   ├── service/         # 业务逻辑
-│   └── spatial/         # 空间计算
+│   └── service/         # 业务逻辑
 ├── migrations/          # 数据库迁移脚本
 ├── scripts/             # 工具脚本
 ├── web/
@@ -42,38 +51,50 @@
 
 ## 🚀 快速开始
 
-### 1. 环境准备
+### 使用 Docker（推荐）
 
 ```bash
-# 安装 PostgreSQL + PostGIS + pgRouting
-sudo apt update
+# 克隆项目
+git clone https://github.com/lymangos/15min.git
+cd 15min
+
+# 启动服务
+docker compose up -d
+
+# 访问 http://localhost:8080
+```
+
+### 手动部署
+
+```bash
+# 1. 安装 PostgreSQL + PostGIS + pgRouting
 sudo apt install postgresql-16 postgresql-16-postgis-3 postgresql-16-pgrouting
 
-# 创建数据库
+# 2. 创建数据库并启用扩展
 sudo -u postgres createdb life_circle_15min
-sudo -u postgres psql -d life_circle_15min -c "CREATE EXTENSION postgis;"
-sudo -u postgres psql -d life_circle_15min -c "CREATE EXTENSION pgrouting;"
-```
+sudo -u postgres psql -d life_circle_15min -c "CREATE EXTENSION postgis; CREATE EXTENSION pgrouting;"
 
-### 2. 导入 OSM 数据
+# 3. 导入 OSM 数据
+osm2pgrouting -f data/hangzhou_subset.osm -d life_circle_15min -U postgres
 
-```bash
-# 下载 OSM 数据 (以某城市为例)
-wget https://download.geofabrik.de/asia/china-latest.osm.pbf
+# 4. 运行迁移脚本
+psql -d life_circle_15min -f migrations/001_init_schema.sql
+psql -d life_circle_15min -f migrations/002_spatial_functions.sql
+psql -d life_circle_15min -f migrations/003_import_osm_poi.sql
 
-# 使用 osm2pgrouting 导入路网
-osm2pgrouting -f your-city.osm -d life_circle_15min -U postgres
-```
-
-### 3. 运行应用
-
-```bash
-# 运行数据库迁移
-go run cmd/migrate/main.go
-
-# 启动服务器
+# 5. 启动服务器
 go run cmd/server/main.go
 ```
+
+## 🔧 环境变量
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `SERVER_ADDR` | 服务监听地址 | `:8080` |
+| `DB_HOST` | 数据库主机 | `localhost` |
+| `DB_PORT` | 数据库端口 | `5432` |
+| `DB_NAME` | 数据库名 | `life_circle_15min` |
+| `AMAP_KEY` | 高德地图API Key | - |
 
 ## 📐 坐标系说明
 
