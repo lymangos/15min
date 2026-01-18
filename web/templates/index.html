@@ -55,6 +55,11 @@
                     
                     <p class="summary" id="result-summary"></p>
 
+                    <!-- 雷达图 -->
+                    <div class="radar-chart-container">
+                        <div id="radar-chart"></div>
+                    </div>
+
                     <!-- 分类评分 -->
                     <div class="category-scores" id="category-scores">
                         <!-- 动态生成 -->
@@ -183,6 +188,9 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- ECharts 雷达图 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     
     <script src="/static/js/app.js"></script>
 </body>

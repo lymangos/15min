@@ -72,7 +72,9 @@ const state = {
         transport: true,
         child: true
     },
-    currentPOIs: null        // 当前 POI 数据缓存
+    currentPOIs: null,       // 当前 POI 数据缓存
+    currentResult: null,     // 当前分析结果缓存
+    radarChart: null         // ECharts 雷达图实例
 };
 
 // ============================================
@@ -82,6 +84,7 @@ const state = {
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
     initEventListeners();
+    initRadarChart();
 });
 
 /**
@@ -741,6 +744,9 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
  * 渲染评价结果
  */
 function renderEvaluationResult(result) {
+    // 缓存结果（用于导出）
+    state.currentResult = result;
+    
     // 显示结果面板
     document.getElementById('result-panel').style.display = 'block';
     
@@ -758,6 +764,9 @@ function renderEvaluationResult(result) {
     
     // 分类评分
     renderCategoryScores(result.category_scores || []);
+    
+    // 渲染雷达图
+    renderRadarChart(result.category_scores || []);
     
     // 建议
     renderSuggestions(result.suggestions || []);
@@ -906,7 +915,8 @@ function renderMockResult(lng, lat) {
             { category: 'culture', name: '文化体育', score: 60, poi_count: 2 },
             { category: 'public', name: '公共服务', score: 70, poi_count: 4 },
             { category: 'transport', name: '交通设施', score: 90, poi_count: 6 },
-            { category: 'elderly', name: '养老服务', score: 45, poi_count: 1 }
+            { category: 'elderly', name: '养老服务', score: 45, poi_count: 1 },
+            { category: 'child', name: '托幼托育', score: 55, poi_count: 2 }
         ],
         suggestions: [
             '【文化体育】设施覆盖不足（得分60），建议增设相关配套设施',
@@ -915,4 +925,165 @@ function renderMockResult(lng, lat) {
     };
     
     renderEvaluationResult(mockResult);
+}
+
+// ============================================
+// 雷达图功能
+// ============================================
+
+/**
+ * 初始化雷达图
+ */
+function initRadarChart() {
+    const chartDom = document.getElementById('radar-chart');
+    if (chartDom && typeof echarts !== 'undefined') {
+        // 确保容器有正确尺寸后再初始化
+        setTimeout(() => {
+            state.radarChart = echarts.init(chartDom);
+            
+            // 监听窗口大小变化
+            window.addEventListener('resize', () => {
+                if (state.radarChart) {
+                    state.radarChart.resize();
+                }
+            });
+        }, 100);
+    }
+}
+
+/**
+ * 渲染雷达图
+ */
+function renderRadarChart(categoryScores) {
+    // 如果图表未初始化，延迟重试
+    if (!state.radarChart) {
+        const chartDom = document.getElementById('radar-chart');
+        if (chartDom && typeof echarts !== 'undefined') {
+            state.radarChart = echarts.init(chartDom);
+        } else {
+            return;
+        }
+    }
+    
+    if (!categoryScores || categoryScores.length === 0) {
+        return;
+    }
+    
+    // 强制重新计算尺寸
+    state.radarChart.resize();
+    
+    // 分类名称简称映射
+    const shortNames = {
+        '医疗卫生': '医疗',
+        '教育设施': '教育',
+        '养老服务': '养老',
+        '商业服务': '商服',
+        '文化体育': '文体',
+        '公共管理': '公管',
+        '交通设施': '交通',
+        '托幼托育': '幼托'
+    };
+    
+    // 准备雷达图数据 - 黑白专业风格，使用简称
+    const indicators = categoryScores.map(cs => ({
+        name: shortNames[cs.name] || cs.name,
+        max: 100
+    }));
+    
+    const values = categoryScores.map(cs => cs.score || 0);
+    
+    // 雷达图配置 - 黑白专业风格
+    const option = {
+        tooltip: {
+            trigger: 'item',
+            backgroundColor: 'rgba(50, 50, 50, 0.9)',
+            borderColor: '#333',
+            textStyle: {
+                color: '#fff'
+            },
+            formatter: function(params) {
+                let result = `<strong>各类设施评分</strong><br/>`;
+                categoryScores.forEach((cs, i) => {
+                    result += `${cs.name}: <strong>${values[i].toFixed(0)}</strong>分<br/>`;
+                });
+                return result;
+            }
+        },
+        radar: {
+            center: ['50%', '50%'],
+            radius: '60%',
+            indicator: indicators,
+            shape: 'polygon',
+            splitNumber: 4,
+            axisName: {
+                color: '#333',
+                fontSize: 13,
+                fontWeight: 'bold',
+                fontWeight: 'normal',
+                padding: [3, 5]
+            },
+            splitLine: {
+                lineStyle: {
+                    color: '#ccc',
+                    width: 1
+                }
+            },
+            splitArea: {
+                show: true,
+                areaStyle: {
+                    color: ['#fff', '#f5f5f5', '#fff', '#f5f5f5']
+                }
+            },
+            axisLine: {
+                lineStyle: {
+                    color: '#bbb'
+                }
+            }
+        },
+        series: [{
+            name: '生活圈评分',
+            type: 'radar',
+            data: [{
+                value: values,
+                name: '评分',
+                symbol: 'circle',
+                symbolSize: 5,
+                lineStyle: {
+                    color: '#333',
+                    width: 2
+                },
+                areaStyle: {
+                    color: 'rgba(100, 100, 100, 0.2)'
+                },
+                itemStyle: {
+                    color: '#333',
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }
+            }]
+        }]
+    };
+    
+    state.radarChart.setOption(option, true);
+}
+
+// ============================================
+// 辅助函数
+// ============================================
+
+/**
+ * 获取雷达图两字简称
+ */
+function getRadarShortName(name) {
+    const shortNames = {
+        '医疗卫生': '医疗',
+        '教育设施': '教育',
+        '养老服务': '养老',
+        '商业服务': '商服',
+        '文化体育': '文体',
+        '公共管理': '公管',
+        '交通设施': '交通',
+        '托幼托育': '幼托'
+    };
+    return shortNames[name] || name;
 }
