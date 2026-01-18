@@ -942,6 +942,57 @@ function renderCategoryScores(scores) {
             </div>
         `;
     }).join('');
+    
+    // 添加 POI 来源统计
+    renderPOISourceStats();
+}
+
+/**
+ * 渲染 POI 来源统计
+ */
+function renderPOISourceStats() {
+    if (!state.currentPOIs || state.currentPOIs.length === 0) {
+        return;
+    }
+    
+    // 统计各来源的 POI 数量
+    let osmCount = 0;
+    let amapCount = 0;
+    
+    state.currentPOIs.forEach(poi => {
+        if (poi.source === 'amap') {
+            amapCount++;
+        } else {
+            osmCount++; // 默认是 OSM/本地数据
+        }
+    });
+    
+    const total = osmCount + amapCount;
+    
+    // 查找或创建统计容器
+    let statsContainer = document.getElementById('poi-source-stats');
+    if (!statsContainer) {
+        statsContainer = document.createElement('div');
+        statsContainer.id = 'poi-source-stats';
+        statsContainer.className = 'poi-source-stats';
+        document.getElementById('category-scores').appendChild(statsContainer);
+    }
+    
+    statsContainer.innerHTML = `
+        <div class="source-stat-item">
+            <span class="source-icon">🗺️</span>
+            <span class="source-label">本地数据</span>
+            <span class="source-count">${osmCount}</span>
+        </div>
+        <div class="source-stat-item">
+            <span class="source-icon">🔵</span>
+            <span class="source-label">高德地图</span>
+            <span class="source-count">${amapCount}</span>
+        </div>
+        <div class="source-stat-total">
+            共 ${total} 个设施
+        </div>
+    `;
 }
 
 /**
