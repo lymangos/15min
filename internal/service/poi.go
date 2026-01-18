@@ -102,6 +102,7 @@ func (s *POIService) POIsAsGeoJSON(pois []model.POI) *model.FeatureCollection {
 			"category": poi.Category,
 			"sub_type": poi.SubType,
 			"type":     "poi",
+			"source":   poi.Source,
 		})
 		fc.AddFeature(feature)
 	}

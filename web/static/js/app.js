@@ -707,8 +707,8 @@ async function analyzePoint(lng, lat) {
         
         const result = await response.json();
         
-        // 缓存 POI 数据
-        state.currentPOIs = result.pois;
+        // 缓存 POI 数据 (pois 是 GeoJSON 格式，features 是 POI 数组)
+        state.currentPOIs = result.pois && result.pois.features ? result.pois.features : [];
         
         // 渲染结果
         renderIsochrone(result.isochrone);
@@ -953,7 +953,8 @@ function renderCategoryScores(scores) {
  * 渲染 POI 来源统计
  */
 function renderPOISourceStats() {
-    if (!state.currentPOIs || state.currentPOIs.length === 0) {
+    // 确保 currentPOIs 是数组
+    if (!state.currentPOIs || !Array.isArray(state.currentPOIs) || state.currentPOIs.length === 0) {
         return;
     }
     
@@ -961,8 +962,10 @@ function renderPOISourceStats() {
     let osmCount = 0;
     let amapCount = 0;
     
-    state.currentPOIs.forEach(poi => {
-        if (poi.source === 'amap') {
+    state.currentPOIs.forEach(feature => {
+        // GeoJSON feature 的属性在 properties 中
+        const props = feature.properties || feature;
+        if (props.source === 'amap') {
             amapCount++;
         } else {
             osmCount++; // 默认是 OSM/本地数据
