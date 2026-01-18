@@ -8,6 +8,7 @@ import (
 type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
+	Amap     AmapConfig
 }
 
 // ServerConfig 服务器配置
@@ -25,6 +26,12 @@ type DatabaseConfig struct {
 	SSLMode  string
 }
 
+// AmapConfig 高德地图API配置
+type AmapConfig struct {
+	Key     string
+	Enabled bool
+}
+
 // DSN 返回数据库连接字符串
 func (c DatabaseConfig) DSN() string {
 	return "host=" + c.Host +
@@ -37,6 +44,7 @@ func (c DatabaseConfig) DSN() string {
 
 // Load 加载配置（从环境变量）
 func Load() (*Config, error) {
+	amapKey := getEnv("AMAP_KEY", "b8c46da854c65a844724a50cbaa9ca54")
 	return &Config{
 		Server: ServerConfig{
 			Addr: getEnv("SERVER_ADDR", ":8080"),
@@ -48,6 +56,10 @@ func Load() (*Config, error) {
 			Password: getEnv("DB_PASSWORD", "postgres"),
 			DBName:   getEnv("DB_NAME", "life_circle_15min"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
+		},
+		Amap: AmapConfig{
+			Key:     amapKey,
+			Enabled: amapKey != "",
 		},
 	}, nil
 }

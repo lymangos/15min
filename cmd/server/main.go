@@ -33,7 +33,14 @@ func main() {
 	// 初始化服务层
 	isochroneService := service.NewIsochroneService(db)
 	poiService := service.NewPOIService(db)
-	evaluationService := service.NewEvaluationService(db, poiService)
+	evaluationService := service.NewEvaluationService(db, poiService, cfg)
+
+	// 打印高德API状态
+	if cfg.Amap.Enabled {
+		log.Println("高德POI服务已启用")
+	} else {
+		log.Println("高德POI服务未启用（无API Key）")
+	}
 
 	// 设置 Gin 路由
 	router := gin.Default()
@@ -50,7 +57,7 @@ func main() {
 	// API 路由
 	apiGroup := router.Group("/api/v1")
 	{
-		handler := api.NewHandler(isochroneService, poiService, evaluationService)
+		handler := api.NewHandler(isochroneService, poiService, evaluationService, cfg)
 		apiGroup.POST("/isochrone", handler.CalculateIsochrone)
 		apiGroup.POST("/analyze", handler.AnalyzePoint)
 		apiGroup.GET("/poi/categories", handler.GetPOICategories)

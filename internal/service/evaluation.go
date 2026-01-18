@@ -4,23 +4,27 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 
+	"github.com/yourname/15min-life-circle/internal/config"
 	"github.com/yourname/15min-life-circle/internal/database"
 	"github.com/yourname/15min-life-circle/internal/model"
 )
 
 // EvaluationService 评价服务
 type EvaluationService struct {
-	db         *database.DB
-	poiService *POIService
+	db          *database.DB
+	poiService  *POIService
+	amapService *AmapPOIService
 }
 
 // NewEvaluationService 创建评价服务
-func NewEvaluationService(db *database.DB, poiService *POIService) *EvaluationService {
+func NewEvaluationService(db *database.DB, poiService *POIService, cfg *config.Config) *EvaluationService {
 	return &EvaluationService{
-		db:         db,
-		poiService: poiService,
+		db:          db,
+		poiService:  poiService,
+		amapService: NewAmapPOIService(cfg.Amap),
 	}
 }
 
@@ -123,10 +127,71 @@ func (s *EvaluationService) Evaluate(ctx context.Context, req *model.EvaluationR
 
 	// 获取 POI GeoJSON（使用用户配置的步行速度）
 	if pois, err := s.poiService.QueryInIsochrone(ctx, req.Lng, req.Lat, req.TimeThreshold, req.WalkSpeed); err == nil {
+		// 尝试补充高德 POI 数据
+		if s.amapService != nil && s.amapService.IsEnabled() {
+			// 计算搜索半径（步行速度 * 15分钟）
+			radius := int(req.WalkSpeed * 1000 / 60 * 15)
+			if amapPOIs, err := s.amapService.SearchNearby(req.Lng, req.Lat, radius); err == nil {
+				// 合并去重
+				pois = s.mergePOIs(pois, amapPOIs)
+				log.Printf("合并高德POI：本地 %d + 高德 %d = 总计 %d", len(pois)-len(amapPOIs), len(amapPOIs), len(pois))
+			} else {
+				log.Printf("高德POI查询失败: %v", err)
+			}
+		}
 		result.POIs = s.poiService.POIsAsGeoJSON(pois)
 	}
 
 	return result, nil
+}
+
+// mergePOIs 合并本地和高德POI（去重）
+func (s *EvaluationService) mergePOIs(localPOIs []model.POI, amapPOIs []model.POI) []model.POI {
+	// 用于去重的集合（基于位置和名称）
+	seen := make(map[string]bool)
+	
+	// 先添加本地POI
+	for _, poi := range localPOIs {
+		key := fmt.Sprintf("%.5f,%.5f,%s", poi.Lng, poi.Lat, poi.Name)
+		seen[key] = true
+		poi.Source = "osm"
+	}
+	
+	result := localPOIs
+	
+	// 添加不重复的高德POI
+	for _, poi := range amapPOIs {
+		key := fmt.Sprintf("%.5f,%.5f,%s", poi.Lng, poi.Lat, poi.Name)
+		
+		// 检查是否已存在类似POI（距离在50米内且名称相似）
+		isDuplicate := seen[key]
+		if !isDuplicate {
+			// 还可以检查附近是否有同名POI
+			for _, local := range localPOIs {
+				dist := distance(poi.Lng, poi.Lat, local.Lng, local.Lat)
+				if dist < 50 && strings.Contains(poi.Name, local.Name) || strings.Contains(local.Name, poi.Name) {
+					isDuplicate = true
+					break
+				}
+			}
+		}
+		
+		if !isDuplicate {
+			result = append(result, poi)
+			seen[key] = true
+		}
+	}
+	
+	return result
+}
+
+// distance 计算两点间距离（米）- 简化版
+func distance(lng1, lat1, lng2, lat2 float64) float64 {
+	// 简单的欧几里得距离近似（适用于小范围）
+	// 1度纬度约111km，1度经度在杭州约90km
+	dLat := (lat2 - lat1) * 111000
+	dLng := (lng2 - lng1) * 90000
+	return (dLat*dLat + dLng*dLng) / 2 // 简化平方根
 }
 
 // generateSuggestions 根据评分生成改进建议

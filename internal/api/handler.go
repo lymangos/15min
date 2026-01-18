@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yourname/15min-life-circle/internal/config"
 	"github.com/yourname/15min-life-circle/internal/model"
 	"github.com/yourname/15min-life-circle/internal/service"
 )
@@ -13,6 +14,7 @@ type Handler struct {
 	isochroneService  *service.IsochroneService
 	poiService        *service.POIService
 	evaluationService *service.EvaluationService
+	amapService       *service.AmapPOIService
 }
 
 // NewHandler 创建处理器
@@ -20,11 +22,13 @@ func NewHandler(
 	isoService *service.IsochroneService,
 	poiService *service.POIService,
 	evalService *service.EvaluationService,
+	cfg *config.Config,
 ) *Handler {
 	return &Handler{
 		isochroneService:  isoService,
 		poiService:        poiService,
 		evaluationService: evalService,
+		amapService:       service.NewAmapPOIService(cfg.Amap),
 	}
 }
 

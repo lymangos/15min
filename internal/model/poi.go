@@ -10,6 +10,7 @@ type POI struct {
 	Lat        float64  `json:"lat"`
 	Address    string   `json:"address,omitempty"`
 	Tags       []string `json:"tags,omitempty"`
+	Source     string   `json:"source,omitempty"` // 数据来源：osm、amap
 }
 
 // POICategory POI 分类（基于城乡规划标准）
