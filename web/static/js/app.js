@@ -683,6 +683,10 @@ async function analyzePoint(lng, lat) {
     showLoading(true);
     
     try {
+        // 设置超时控制（30秒）
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        
         const response = await fetch(`${CONFIG.apiBase}/analyze`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -691,8 +695,11 @@ async function analyzePoint(lng, lat) {
                 lat, 
                 time_threshold: 15,
                 walk_speed: state.walkSpeed  // 使用用户配置的速度
-            })
+            }),
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -710,7 +717,15 @@ async function analyzePoint(lng, lat) {
         
     } catch (error) {
         console.error('Analysis failed:', error);
-        showError('分析失败，请重试');
+        
+        // 根据错误类型显示不同提示
+        if (error.name === 'AbortError') {
+            showError('请求超时，请检查网络连接后重试');
+        } else if (error.message.includes('Failed to fetch')) {
+            showError('网络连接失败，请检查网络');
+        } else {
+            showError('分析失败，请重试');
+        }
         
         // 开发模式：使用模拟数据
         if (window.location.hostname === 'localhost') {

@@ -28,15 +28,42 @@ type AmapPOIResponse struct {
 	POIs       []AmapPOI  `json:"pois"`
 }
 
+// FlexibleString 处理高德API返回的灵活类型字段（可能是字符串或数组）
+type FlexibleString string
+
+func (f *FlexibleString) UnmarshalJSON(data []byte) error {
+	// 先尝试解析为字符串
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		*f = FlexibleString(s)
+		return nil
+	}
+	
+	// 如果失败，尝试解析为字符串数组
+	var arr []string
+	if err := json.Unmarshal(data, &arr); err == nil {
+		if len(arr) > 0 {
+			*f = FlexibleString(arr[0])
+		} else {
+			*f = ""
+		}
+		return nil
+	}
+	
+	// 都失败则设为空
+	*f = ""
+	return nil
+}
+
 // AmapPOI 高德POI数据
 type AmapPOI struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	TypeCode string `json:"typecode"`
-	Address  string `json:"address"`
-	Location string `json:"location"` // 经度,纬度
-	Distance string `json:"distance"`
+	ID       string         `json:"id"`
+	Name     string         `json:"name"`
+	Type     string         `json:"type"`
+	TypeCode string         `json:"typecode"`
+	Address  FlexibleString `json:"address"`
+	Location string         `json:"location"` // 经度,纬度
+	Distance string         `json:"distance"`
 }
 
 // NewAmapPOIService 创建高德POI服务
