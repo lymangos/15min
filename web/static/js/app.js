@@ -3,13 +3,45 @@
  */
 
 // ============================================
+// 城市配置
+// ============================================
+
+const CITIES = {
+    hangzhou: {
+        name: '杭州',
+        center: [30.2741, 120.1551],
+        zoom: 14,
+        bounds: [[30.1, 119.9], [30.5, 120.5]],  // [[南, 西], [北, 东]]
+        description: '浙江省杭州市'
+    },
+    zhuji: {
+        name: '诸暨',
+        center: [29.85, 120.08],
+        zoom: 14,
+        bounds: [[29.6, 120.0], [29.9, 120.4]],
+        description: '浙江省诸暨市'
+    },
+    shenyang: {
+        name: '沈阳',
+        center: [41.80, 123.43],
+        zoom: 13,
+        bounds: [[41.65, 123.2], [41.95, 123.6]],
+        description: '辽宁省沈阳市'
+    }
+};
+
+// ============================================
 // 配置
 // ============================================
 
 const CONFIG = {
-    // 默认地图中心 - 浙江杭州
-    defaultCenter: [30.2741, 120.1551], // 杭州市中心（西湖附近）
-    defaultZoom: 14,
+    // 当前选中的城市
+    currentCity: 'hangzhou',
+    
+    // 默认地图中心 - 使用当前城市
+    get defaultCenter() { return CITIES[this.currentCity].center; },
+    get defaultZoom() { return CITIES[this.currentCity].zoom; },
+    get cityBounds() { return CITIES[this.currentCity].bounds; },
     
     // API 端点
     apiBase: '/api/v1',
@@ -74,7 +106,8 @@ const state = {
     },
     currentPOIs: null,       // 当前 POI 数据缓存
     currentResult: null,     // 当前分析结果缓存
-    radarChart: null         // ECharts 雷达图实例
+    radarChart: null,        // ECharts 雷达图实例
+    cityBoundsRect: null     // 城市边界矩形
 };
 
 // ============================================
@@ -85,20 +118,30 @@ document.addEventListener('DOMContentLoaded', () => {
     initMap();
     initEventListeners();
     initRadarChart();
+    initCitySelector();
 });
 
 /**
  * 初始化地图
  */
 function initMap() {
-    // 创建地图
-    state.map = L.map('map').setView(CONFIG.defaultCenter, CONFIG.defaultZoom);
+    // 获取城市边界
+    const bounds = L.latLngBounds(CONFIG.cityBounds);
+    
+    // 创建地图，设置边界限制
+    state.map = L.map('map', {
+        maxBounds: bounds.pad(0.1),  // 稍微扩展边界，让边缘可见
+        maxBoundsViscosity: 1.0      // 完全限制在边界内
+    }).setView(CONFIG.defaultCenter, CONFIG.defaultZoom);
     
     // 添加底图
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 19
     }).addTo(state.map);
+    
+    // 添加城市边界可视化
+    updateCityBoundsRect();
     
     // 添加比例尺
     L.control.scale({ imperial: false }).addTo(state.map);
@@ -1086,4 +1129,109 @@ function getRadarShortName(name) {
         '托幼托育': '幼托'
     };
     return shortNames[name] || name;
+}
+
+// ============================================
+// 城市选择器
+// ============================================
+
+/**
+ * 初始化城市选择器
+ */
+function initCitySelector() {
+    const selector = document.getElementById('city-selector');
+    if (!selector) return;
+    
+    // 填充城市选项
+    selector.innerHTML = Object.entries(CITIES).map(([key, city]) => 
+        `<option value="${key}" ${key === CONFIG.currentCity ? 'selected' : ''}>${city.name}</option>`
+    ).join('');
+    
+    // 监听切换事件
+    selector.addEventListener('change', (e) => {
+        switchCity(e.target.value);
+    });
+    
+    // 更新城市信息显示
+    updateCityInfo();
+}
+
+/**
+ * 切换城市
+ */
+function switchCity(cityKey) {
+    if (!CITIES[cityKey]) return;
+    
+    CONFIG.currentCity = cityKey;
+    const city = CITIES[cityKey];
+    
+    // 清除当前分析结果
+    clearAnalysis();
+    
+    // 更新地图视图和边界
+    const bounds = L.latLngBounds(city.bounds);
+    state.map.setMaxBounds(bounds.pad(0.1));
+    state.map.flyTo(city.center, city.zoom);
+    
+    // 更新边界矩形
+    updateCityBoundsRect();
+    
+    // 更新城市信息
+    updateCityInfo();
+    
+    console.log(`已切换到：${city.name}`);
+}
+
+/**
+ * 更新城市边界矩形显示
+ */
+function updateCityBoundsRect() {
+    // 移除旧的边界
+    if (state.cityBoundsRect) {
+        state.map.removeLayer(state.cityBoundsRect);
+    }
+    
+    const bounds = CONFIG.cityBounds;
+    state.cityBoundsRect = L.rectangle(bounds, {
+        color: '#3498db',
+        weight: 2,
+        fillOpacity: 0,
+        dashArray: '5, 5',
+        interactive: false
+    }).addTo(state.map);
+}
+
+/**
+ * 更新城市信息显示
+ */
+function updateCityInfo() {
+    const city = CITIES[CONFIG.currentCity];
+    const infoEl = document.getElementById('city-info');
+    if (infoEl) {
+        infoEl.textContent = city.description;
+    }
+}
+
+/**
+ * 清除分析结果
+ */
+function clearAnalysis() {
+    // 清除标记
+    if (state.currentMarker) {
+        state.map.removeLayer(state.currentMarker);
+        state.currentMarker = null;
+    }
+    
+    // 清除图层
+    state.isochroneLayer.clearLayers();
+    state.poiLayer.clearLayers();
+    
+    // 重置状态
+    state.selectedLocation = null;
+    state.currentPOIs = null;
+    state.currentResult = null;
+    
+    // 隐藏结果面板
+    document.getElementById('result-panel').style.display = 'none';
+    document.getElementById('current-location').innerHTML = '<p class="placeholder">请在地图上点击选择位置</p>';
 }
