@@ -21,10 +21,15 @@
             </header>
 
             <div class="sidebar-content">
-                <!-- 操作提示 -->
-                <section class="panel">
-                    <h3>📍 操作说明</h3>
-                    <p>点击地图上任意位置，系统将自动分析该点的15分钟生活圈服务覆盖情况。</p>
+                <!-- 地址搜索 -->
+                <section class="panel" id="search-panel">
+                    <h3>🔍 地址搜索</h3>
+                    <div class="search-container">
+                        <input type="text" id="search-input" placeholder="输入地址或POI名称..." autocomplete="off">
+                        <button id="search-btn" class="search-btn" title="搜索">🔍</button>
+                        <button id="locate-btn" class="locate-btn" title="定位到当前位置">📍</button>
+                    </div>
+                    <div id="search-results" class="search-results" style="display: none;"></div>
                 </section>
 
                 <!-- 当前坐标 -->

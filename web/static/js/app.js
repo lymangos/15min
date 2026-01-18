@@ -14,6 +14,10 @@ const CONFIG = {
     // API 端点
     apiBase: '/api/v1',
     
+    // 高德地图 API Key（Web服务）
+    // 注意：实际使用时请替换为您自己的 Key
+    amapKey: '',  // 留空则使用本地 Nominatim
+    
     // 等时圈样式
     isochroneStyles: {
         5: { color: '#2ecc71', fillColor: '#2ecc71', fillOpacity: 0.3, weight: 2 },
@@ -129,6 +133,261 @@ function initEventListeners() {
     if (filterAll) {
         filterAll.addEventListener('change', handleFilterAll);
     }
+    
+    // 搜索功能
+    const searchInput = document.getElementById('search-input');
+    const searchBtn = document.getElementById('search-btn');
+    const locateBtn = document.getElementById('locate-btn');
+    
+    if (searchInput) {
+        // 输入时搜索建议
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                handleSearchInput(e.target.value);
+            }, 300);
+        });
+        
+        // 回车搜索
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleSearch(searchInput.value);
+            }
+        });
+        
+        // 点击其他地方关闭搜索结果
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#search-panel')) {
+                hideSearchResults();
+            }
+        });
+    }
+    
+    if (searchBtn) {
+        searchBtn.addEventListener('click', () => {
+            handleSearch(document.getElementById('search-input').value);
+        });
+    }
+    
+    if (locateBtn) {
+        locateBtn.addEventListener('click', handleLocate);
+    }
+}
+
+// ============================================
+// 地址搜索功能
+// ============================================
+
+/**
+ * 处理搜索输入（显示建议）
+ */
+async function handleSearchInput(query) {
+    if (!query || query.length < 2) {
+        hideSearchResults();
+        return;
+    }
+    
+    try {
+        const results = await searchAddress(query);
+        showSearchResults(results);
+    } catch (error) {
+        console.error('Search failed:', error);
+    }
+}
+
+/**
+ * 执行搜索
+ */
+async function handleSearch(query) {
+    if (!query) return;
+    
+    try {
+        const results = await searchAddress(query);
+        if (results.length > 0) {
+            // 选择第一个结果
+            selectSearchResult(results[0]);
+        } else {
+            showToast('未找到相关地址', 'error');
+        }
+    } catch (error) {
+        console.error('Search failed:', error);
+        showToast('搜索失败，请重试', 'error');
+    }
+}
+
+/**
+ * 搜索地址（使用 Nominatim 免费 API）
+ */
+async function searchAddress(query) {
+    // 使用 OpenStreetMap Nominatim API（免费，无需 Key）
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=cn&limit=5&addressdetails=1`;
+    
+    const response = await fetch(url, {
+        headers: {
+            'Accept-Language': 'zh-CN,zh'
+        }
+    });
+    
+    if (!response.ok) {
+        throw new Error('Search API failed');
+    }
+    
+    const data = await response.json();
+    
+    return data.map(item => ({
+        name: item.display_name.split(',')[0],
+        address: item.display_name,
+        lat: parseFloat(item.lat),
+        lng: parseFloat(item.lon)
+    }));
+}
+
+/**
+ * 显示搜索结果
+ */
+function showSearchResults(results) {
+    const container = document.getElementById('search-results');
+    
+    if (!results || results.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    container.innerHTML = results.map((r, i) => `
+        <div class="search-result-item" data-index="${i}">
+            <div class="name">${r.name}</div>
+            <div class="address">${r.address}</div>
+        </div>
+    `).join('');
+    
+    // 添加点击事件
+    container.querySelectorAll('.search-result-item').forEach((item, i) => {
+        item.addEventListener('click', () => {
+            selectSearchResult(results[i]);
+        });
+    });
+    
+    container.style.display = 'block';
+}
+
+/**
+ * 隐藏搜索结果
+ */
+function hideSearchResults() {
+    const container = document.getElementById('search-results');
+    if (container) {
+        container.style.display = 'none';
+    }
+}
+
+/**
+ * 选择搜索结果
+ */
+function selectSearchResult(result) {
+    hideSearchResults();
+    document.getElementById('search-input').value = result.name;
+    
+    // 跳转到该位置
+    state.map.setView([result.lat, result.lng], 16);
+    
+    // 更新状态并分析
+    state.selectedLocation = { lat: result.lat, lng: result.lng };
+    updateLocationDisplay(result.lat, result.lng);
+    updateMarker(result.lat, result.lng);
+    analyzePoint(result.lng, result.lat);
+    
+    showToast(`已定位到: ${result.name}`, 'success');
+}
+
+// ============================================
+// 当前位置定位
+// ============================================
+
+/**
+ * 处理定位按钮点击
+ */
+function handleLocate() {
+    const locateBtn = document.getElementById('locate-btn');
+    
+    if (!navigator.geolocation) {
+        showToast('您的浏览器不支持定位功能', 'error');
+        return;
+    }
+    
+    // 显示定位中状态
+    locateBtn.classList.add('locating');
+    locateBtn.textContent = '⏳';
+    
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const { latitude, longitude } = position.coords;
+            
+            // 恢复按钮状态
+            locateBtn.classList.remove('locating');
+            locateBtn.textContent = '📍';
+            
+            // 跳转到当前位置
+            state.map.setView([latitude, longitude], 16);
+            
+            // 更新状态并分析
+            state.selectedLocation = { lat: latitude, lng: longitude };
+            updateLocationDisplay(latitude, longitude);
+            updateMarker(latitude, longitude);
+            analyzePoint(longitude, latitude);
+            
+            showToast('已定位到当前位置', 'success');
+        },
+        (error) => {
+            // 恢复按钮状态
+            locateBtn.classList.remove('locating');
+            locateBtn.textContent = '📍';
+            
+            let message = '定位失败';
+            switch (error.code) {
+                case error.PERMISSION_DENIED:
+                    message = '定位权限被拒绝，请在浏览器设置中允许';
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    message = '无法获取位置信息';
+                    break;
+                case error.TIMEOUT:
+                    message = '定位超时，请重试';
+                    break;
+            }
+            showToast(message, 'error');
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000
+        }
+    );
+}
+
+// ============================================
+// Toast 提示
+// ============================================
+
+/**
+ * 显示 Toast 提示
+ */
+function showToast(message, type = 'info') {
+    // 移除现有的 toast
+    const existing = document.querySelector('.toast');
+    if (existing) {
+        existing.remove();
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    // 3秒后自动消失
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
 }
 
 /**
@@ -388,7 +647,7 @@ function renderPOIs(geojson) {
             });
             
             // 计算距离和步行时间
-            let distanceInfo = '';
+            let distanceHtml = '';
             if (state.selectedLocation) {
                 const distance = calculateDistance(
                     state.selectedLocation.lat, 
@@ -396,17 +655,39 @@ function renderPOIs(geojson) {
                     lat, lng
                 );
                 const walkTime = (distance / (state.walkSpeed * 1000 / 60)).toFixed(1);
-                distanceInfo = `<p>距离: ${Math.round(distance)}米 (约${walkTime}分钟)</p>`;
+                distanceHtml = `
+                    <div class="poi-distance">
+                        <span class="distance-value">${Math.round(distance)}米</span>
+                        <span class="walk-time">🚶 约${walkTime}分钟</span>
+                    </div>
+                `;
             }
             
+            // 改进的 POI 详情卡片
             marker.bindPopup(`
                 <div class="poi-popup">
-                    <h4>${icon} ${name || '未命名'}</h4>
-                    <p><span class="category-tag" style="background: ${color}">${getCategoryName(category)}</span></p>
-                    <p>类型: ${getSubTypeName(sub_type)}</p>
-                    ${distanceInfo}
+                    <div class="poi-popup-header" style="background: linear-gradient(135deg, ${color}, ${adjustColor(color, -20)});">
+                        <h4>
+                            <span class="poi-icon">${icon}</span>
+                            ${name || '未命名设施'}
+                        </h4>
+                    </div>
+                    <div class="poi-popup-body">
+                        <span class="poi-category" style="background: ${color};">${getCategoryName(category)}</span>
+                        <div class="poi-info">
+                            <div class="poi-info-item">
+                                <span class="label">类型</span>
+                                <span class="value">${getSubTypeName(sub_type)}</span>
+                            </div>
+                            <div class="poi-info-item">
+                                <span class="label">坐标</span>
+                                <span class="value">${lng.toFixed(4)}, ${lat.toFixed(4)}</span>
+                            </div>
+                        </div>
+                        ${distanceHtml}
+                    </div>
                 </div>
-            `);
+            `, { maxWidth: 280 });
             
             marker.addTo(state.poiLayer);
         }
@@ -414,6 +695,18 @@ function renderPOIs(geojson) {
     
     // 更新 POI 计数显示
     updatePOICount();
+}
+
+/**
+ * 调整颜色深浅
+ */
+function adjustColor(color, amount) {
+    const hex = color.replace('#', '');
+    const num = parseInt(hex, 16);
+    const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+    const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amount));
+    const b = Math.min(255, Math.max(0, (num & 0x0000FF) + amount));
+    return `#${(1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1)}`;
 }
 
 /**
