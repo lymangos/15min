@@ -599,6 +599,10 @@ body {
     pointer-events: none; /* 确保点击穿透到 label */
 }
 
+.filter-checkbox > span {
+    pointer-events: none; /* 所有子 span 都不拦截点击 */
+}
+
 .filter-checkbox input[type="checkbox"]:checked + .checkmark {
     background: currentColor;
     border-color: currentColor;

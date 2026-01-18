@@ -717,14 +717,16 @@ async function analyzePoint(lng, lat) {
         
     } catch (error) {
         console.error('Analysis failed:', error);
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
         
         // 根据错误类型显示不同提示
         if (error.name === 'AbortError') {
             showError('请求超时，请检查网络连接后重试');
-        } else if (error.message.includes('Failed to fetch')) {
+        } else if (error.message && error.message.includes('Failed to fetch')) {
             showError('网络连接失败，请检查网络');
         } else {
-            showError('分析失败，请重试');
+            showError('分析失败: ' + (error.message || '请重试'));
         }
         
         // 开发模式：使用模拟数据
