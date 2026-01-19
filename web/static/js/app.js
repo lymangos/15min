@@ -50,11 +50,29 @@ const CONFIG = {
     // 注意：实际使用时请替换为您自己的 Key
     amapKey: '',  // 留空则使用本地 Nominatim
     
-    // 等时圈样式（15分钟最浅作为底图，5分钟最深突出显示）
+    // 等时圈样式 - 科研论文风格（低饱和度，清晰边界）
     isochroneStyles: {
-        5: { color: '#16a34a', fillColor: '#22c55e', fillOpacity: 0.45, weight: 3 },
-        10: { color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.30, weight: 2.5 },
-        15: { color: '#7c3aed', fillColor: '#8b5cf6', fillOpacity: 0.15, weight: 2 }
+        5: { 
+            color: '#166534', 
+            fillColor: '#86efac', 
+            fillOpacity: 0.35, 
+            weight: 2.5,
+            dashArray: null
+        },
+        10: { 
+            color: '#1e40af', 
+            fillColor: '#93c5fd', 
+            fillOpacity: 0.25, 
+            weight: 2,
+            dashArray: '8, 4'
+        },
+        15: { 
+            color: '#374151', 
+            fillColor: '#d1d5db', 
+            fillOpacity: 0.12, 
+            weight: 1.5,
+            dashArray: '4, 4'
+        }
     },
     
     // POI 分类图标
@@ -693,18 +711,20 @@ const progressState = {
  */
 function showProgress() {
     console.log('[Progress] showProgress called');
+    const overlay = document.getElementById('progress-overlay');
     const panel = document.getElementById('analysis-progress');
     const log = document.getElementById('progress-log');
-    console.log('[Progress] panel:', panel, 'log:', log);
+    
+    if (overlay) {
+        overlay.classList.add('active');
+    }
+    
     if (panel && log) {
-        // 强制设置样式，覆盖所有可能的干扰
-        panel.setAttribute('style', 'display: block !important; visibility: visible !important; opacity: 1 !important;');
-        panel.removeAttribute('hidden');
-        log.removeAttribute('hidden');
+        panel.classList.add('active');
         log.innerHTML = '';
         progressState.startTime = Date.now();
         progressState.items = [];
-        console.log('[Progress] Panel shown, computed display:', getComputedStyle(panel).display);
+        console.log('[Progress] Panel shown');
     } else {
         console.error('[Progress] Panel elements not found!');
     }
@@ -714,13 +734,14 @@ function showProgress() {
  * 隐藏进度面板
  */
 function hideProgress() {
+    const overlay = document.getElementById('progress-overlay');
     const panel = document.getElementById('analysis-progress');
-    if (panel) {
-        // 延迟隐藏，让用户看到最终状态
-        setTimeout(() => {
-            panel.style.display = 'none';
-        }, 2000);
-    }
+    
+    // 延迟隐藏，让用户看到最终状态
+    setTimeout(() => {
+        if (overlay) overlay.classList.remove('active');
+        if (panel) panel.classList.remove('active');
+    }, 1500);
 }
 
 /**
