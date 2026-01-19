@@ -50,11 +50,11 @@ const CONFIG = {
     // 注意：实际使用时请替换为您自己的 Key
     amapKey: '',  // 留空则使用本地 Nominatim
     
-    // 等时圈样式
+    // 等时圈样式（15分钟最浅作为底图，5分钟最深突出显示）
     isochroneStyles: {
-        5: { color: '#2ecc71', fillColor: '#2ecc71', fillOpacity: 0.3, weight: 2 },
-        10: { color: '#3498db', fillColor: '#3498db', fillOpacity: 0.25, weight: 2 },
-        15: { color: '#9b59b6', fillColor: '#9b59b6', fillOpacity: 0.2, weight: 2 }
+        5: { color: '#16a34a', fillColor: '#22c55e', fillOpacity: 0.45, weight: 3 },
+        10: { color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.30, weight: 2.5 },
+        15: { color: '#7c3aed', fillColor: '#8b5cf6', fillOpacity: 0.15, weight: 2 }
     },
     
     // POI 分类图标
@@ -104,6 +104,17 @@ const state = {
         transport: true,
         child: true
     },
+    isochroneVisibility: {   // 等时圈可见性
+        5: true,
+        10: true,
+        15: true
+    },
+    isochroneLayers: {       // 分开存储各等时圈图层
+        5: null,
+        10: null,
+        15: null
+    },
+    currentIsochroneData: null, // 缓存当前等时圈数据
     currentPOIs: null,       // 当前 POI features 数组（用于统计）
     currentPOIsGeoJSON: null, // 当前 POI GeoJSON 对象（用于渲染）
     currentResult: null,     // 当前分析结果缓存
@@ -250,6 +261,11 @@ function initEventListeners() {
     if (filterAll) {
         filterAll.addEventListener('change', handleFilterAll);
     }
+    
+    // 等时圈图层开关
+    document.querySelectorAll('#isochrone-control-panel input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', handleIsochroneToggle);
+    });
     
     // 搜索功能
     const searchInput = document.getElementById('search-input');
@@ -681,13 +697,14 @@ function showProgress() {
     const log = document.getElementById('progress-log');
     console.log('[Progress] panel:', panel, 'log:', log);
     if (panel && log) {
-        panel.style.display = 'block';
-        panel.style.visibility = 'visible';
-        panel.style.opacity = '1';
+        // 强制设置样式，覆盖所有可能的干扰
+        panel.setAttribute('style', 'display: block !important; visibility: visible !important; opacity: 1 !important;');
+        panel.removeAttribute('hidden');
+        log.removeAttribute('hidden');
         log.innerHTML = '';
         progressState.startTime = Date.now();
         progressState.items = [];
-        console.log('[Progress] Panel shown');
+        console.log('[Progress] Panel shown, computed display:', getComputedStyle(panel).display);
     } else {
         console.error('[Progress] Panel elements not found!');
     }
@@ -872,23 +889,66 @@ async function analyzePoint(lng, lat) {
 // ============================================
 
 /**
- * 渲染等时圈
+ * 渲染等时圈（分层渲染，支持开关控制）
  */
 function renderIsochrone(geojson) {
     state.isochroneLayer.clearLayers();
     
+    // 清空各分层
+    state.isochroneLayers = { 5: null, 10: null, 15: null };
+    
     if (!geojson || !geojson.features) return;
     
-    geojson.features.forEach(feature => {
-        if (feature.properties.type === 'isochrone') {
-            const minutes = feature.properties.minutes;
-            const style = CONFIG.isochroneStyles[minutes] || CONFIG.isochroneStyles[15];
-            
-            L.geoJSON(feature, {
+    // 缓存数据用于后续开关控制
+    state.currentIsochroneData = geojson;
+    
+    // 按照 15 -> 10 -> 5 的顺序添加（15分钟在最底层）
+    const order = [15, 10, 5];
+    
+    order.forEach(targetMinutes => {
+        const feature = geojson.features.find(f => 
+            f.properties.type === 'isochrone' && f.properties.minutes === targetMinutes
+        );
+        
+        if (feature) {
+            const style = CONFIG.isochroneStyles[targetMinutes];
+            const layer = L.geoJSON(feature, {
                 style: () => style
-            }).addTo(state.isochroneLayer);
+            });
+            
+            // 存储图层引用
+            state.isochroneLayers[targetMinutes] = layer;
+            
+            // 根据可见性决定是否添加到地图
+            if (state.isochroneVisibility[targetMinutes]) {
+                layer.addTo(state.isochroneLayer);
+            }
         }
     });
+}
+
+/**
+ * 处理等时圈图层开关
+ */
+function handleIsochroneToggle(e) {
+    const checkbox = e.target;
+    const id = checkbox.id;
+    const minutes = parseInt(id.replace('isochrone-', ''));
+    
+    if (isNaN(minutes)) return;
+    
+    state.isochroneVisibility[minutes] = checkbox.checked;
+    
+    const layer = state.isochroneLayers[minutes];
+    if (!layer) return;
+    
+    if (checkbox.checked) {
+        // 添加图层
+        layer.addTo(state.isochroneLayer);
+    } else {
+        // 移除图层
+        state.isochroneLayer.removeLayer(layer);
+    }
 }
 
 /**

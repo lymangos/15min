@@ -108,44 +108,58 @@
                     </div>
                     <div class="poi-filter-list" id="poi-filter-list">
                         <label class="filter-checkbox" data-category="medical">
-                            <input type="checkbox" checked>
-                            <span class="checkmark" style="border-color: #e74c3c;"></span>
+                            <input type="checkbox" checked style="--check-color: #e74c3c;">
                             <span>🏥 医疗卫生</span>
                         </label>
                         <label class="filter-checkbox" data-category="education">
-                            <input type="checkbox" checked>
-                            <span class="checkmark" style="border-color: #3498db;"></span>
+                            <input type="checkbox" checked style="--check-color: #3498db;">
                             <span>🏫 教育设施</span>
                         </label>
                         <label class="filter-checkbox" data-category="elderly">
-                            <input type="checkbox" checked>
-                            <span class="checkmark" style="border-color: #e67e22;"></span>
+                            <input type="checkbox" checked style="--check-color: #e67e22;">
                             <span>👴 养老服务</span>
                         </label>
                         <label class="filter-checkbox" data-category="commerce">
-                            <input type="checkbox" checked>
-                            <span class="checkmark" style="border-color: #f39c12;"></span>
+                            <input type="checkbox" checked style="--check-color: #f39c12;">
                             <span>🛒 商业服务</span>
                         </label>
                         <label class="filter-checkbox" data-category="culture">
-                            <input type="checkbox" checked>
-                            <span class="checkmark" style="border-color: #27ae60;"></span>
+                            <input type="checkbox" checked style="--check-color: #27ae60;">
                             <span>🎭 文化体育</span>
                         </label>
                         <label class="filter-checkbox" data-category="public">
-                            <input type="checkbox" checked>
-                            <span class="checkmark" style="border-color: #9b59b6;"></span>
+                            <input type="checkbox" checked style="--check-color: #9b59b6;">
                             <span>🏛️ 公共管理</span>
                         </label>
                         <label class="filter-checkbox" data-category="transport">
-                            <input type="checkbox" checked>
-                            <span class="checkmark" style="border-color: #1abc9c;"></span>
+                            <input type="checkbox" checked style="--check-color: #1abc9c;">
                             <span>🚌 交通设施</span>
                         </label>
                         <label class="filter-checkbox" data-category="child">
-                            <input type="checkbox" checked>
-                            <span class="checkmark" style="border-color: #ff69b4;"></span>
+                            <input type="checkbox" checked style="--check-color: #ff69b4;">
                             <span>👶 托幼托育</span>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- 等时圈图层控制 -->
+                <section class="panel" id="isochrone-control-panel">
+                    <h3>🗺️ 等时圈显示</h3>
+                    <div class="isochrone-controls">
+                        <label class="isochrone-toggle">
+                            <input type="checkbox" id="isochrone-5" checked>
+                            <span class="toggle-slider" style="--toggle-color: #22c55e;"></span>
+                            <span class="toggle-label">5分钟生活圈</span>
+                        </label>
+                        <label class="isochrone-toggle">
+                            <input type="checkbox" id="isochrone-10" checked>
+                            <span class="toggle-slider" style="--toggle-color: #3b82f6;"></span>
+                            <span class="toggle-label">10分钟生活圈</span>
+                        </label>
+                        <label class="isochrone-toggle">
+                            <input type="checkbox" id="isochrone-15" checked disabled>
+                            <span class="toggle-slider locked" style="--toggle-color: #8b5cf6;"></span>
+                            <span class="toggle-label">15分钟生活圈 <small>(底图)</small></span>
                         </label>
                     </div>
                 </section>

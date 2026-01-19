@@ -488,18 +488,20 @@ body {
    ============================================ */
 
 .analysis-progress {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    width: 320px;
-    max-height: 280px;
-    background: rgba(255, 255, 255, 0.98);
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 360px;
+    max-height: 320px;
+    background: rgba(255, 255, 255, 0.98) !important;
     border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-    z-index: 2000;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    z-index: 99999 !important;
     overflow: hidden;
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(0,0,0,0.1);
+    border: 2px solid var(--primary-color);
+    display: none;
 }
 
 .progress-header {
@@ -696,37 +698,114 @@ body {
 }
 
 .filter-checkbox input[type="checkbox"] {
-    display: none;
-}
-
-.filter-checkbox .checkmark {
+    /* 使用原生复选框，但自定义样式 */
+    appearance: none;
+    -webkit-appearance: none;
     width: 18px;
     height: 18px;
     border: 2px solid #ddd;
     border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
+    cursor: pointer;
     flex-shrink: 0;
-    pointer-events: none; /* 确保点击穿透到 label */
+    position: relative;
+    transition: all 0.2s;
 }
 
-.filter-checkbox > span {
-    pointer-events: none; /* 所有子 span 都不拦截点击 */
-}
-
-/* 选中状态：使用 CSS 变量或直接设置背景 */
-.filter-checkbox input[type="checkbox"]:checked + .checkmark {
+.filter-checkbox input[type="checkbox"]:checked {
     background: var(--check-color, #4a90d9);
-    border-color: var(--check-color, #4a90d9) !important;
+    border-color: var(--check-color, #4a90d9);
 }
 
-.filter-checkbox input[type="checkbox"]:checked + .checkmark::after {
+.filter-checkbox input[type="checkbox"]:checked::after {
     content: '✓';
     color: white;
     font-size: 12px;
     font-weight: bold;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.filter-checkbox .checkmark {
+    display: none; /* 隐藏旧的checkmark元素 */
+}
+
+.filter-checkbox > span:last-child {
+    pointer-events: none;
+}
+
+/* ============================================
+   等时圈图层控制
+   ============================================ */
+
+.isochrone-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.isochrone-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    padding: 8px 10px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.isochrone-toggle:hover {
+    background: #f8f9fa;
+}
+
+.isochrone-toggle input[type="checkbox"] {
+    display: none;
+}
+
+.toggle-slider {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: #ccc;
+    border-radius: 24px;
+    transition: all 0.3s;
+    flex-shrink: 0;
+}
+
+.toggle-slider::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.isochrone-toggle input:checked + .toggle-slider {
+    background: var(--toggle-color, #4a90d9);
+}
+
+.isochrone-toggle input:checked + .toggle-slider::after {
+    transform: translateX(20px);
+}
+
+.toggle-slider.locked {
+    opacity: 0.7;
+}
+
+.toggle-label {
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.toggle-label small {
+    color: #999;
+    font-size: 0.8em;
 }
 
 /* ============================================
