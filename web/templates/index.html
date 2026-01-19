@@ -108,44 +108,59 @@
                     </div>
                     <div class="poi-filter-list" id="poi-filter-list">
                         <label class="filter-checkbox" data-category="medical">
-                            <input type="checkbox" checked>
-                            <span class="checkmark" style="border-color: #e74c3c;"></span>
+                            <input type="checkbox" checked style="--check-color: #e74c3c;">
                             <span>🏥 医疗卫生</span>
                         </label>
                         <label class="filter-checkbox" data-category="education">
-                            <input type="checkbox" checked>
-                            <span class="checkmark" style="border-color: #3498db;"></span>
+                            <input type="checkbox" checked style="--check-color: #3498db;">
                             <span>🏫 教育设施</span>
                         </label>
                         <label class="filter-checkbox" data-category="elderly">
-                            <input type="checkbox" checked>
-                            <span class="checkmark" style="border-color: #e67e22;"></span>
+                            <input type="checkbox" checked style="--check-color: #e67e22;">
                             <span>👴 养老服务</span>
                         </label>
                         <label class="filter-checkbox" data-category="commerce">
-                            <input type="checkbox" checked>
-                            <span class="checkmark" style="border-color: #f39c12;"></span>
+                            <input type="checkbox" checked style="--check-color: #f39c12;">
                             <span>🛒 商业服务</span>
                         </label>
                         <label class="filter-checkbox" data-category="culture">
-                            <input type="checkbox" checked>
-                            <span class="checkmark" style="border-color: #27ae60;"></span>
+                            <input type="checkbox" checked style="--check-color: #27ae60;">
                             <span>🎭 文化体育</span>
                         </label>
                         <label class="filter-checkbox" data-category="public">
-                            <input type="checkbox" checked>
-                            <span class="checkmark" style="border-color: #9b59b6;"></span>
+                            <input type="checkbox" checked style="--check-color: #9b59b6;">
                             <span>🏛️ 公共管理</span>
                         </label>
                         <label class="filter-checkbox" data-category="transport">
-                            <input type="checkbox" checked>
-                            <span class="checkmark" style="border-color: #1abc9c;"></span>
+                            <input type="checkbox" checked style="--check-color: #1abc9c;">
                             <span>🚌 交通设施</span>
                         </label>
                         <label class="filter-checkbox" data-category="child">
-                            <input type="checkbox" checked>
-                            <span class="checkmark" style="border-color: #ff69b4;"></span>
+                            <input type="checkbox" checked style="--check-color: #ff69b4;">
                             <span>👶 托幼托育</span>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- 等时圈图层控制 -->
+                <section class="panel" id="isochrone-control-panel">
+                    <h3>🗺️ 等时圈显示</h3>
+                    <div class="isochrone-controls">
+                        <label class="isochrone-toggle">
+                            <input type="checkbox" id="isochrone-5" checked style="--toggle-color: #22c55e;">
+                            <span class="toggle-label">5分钟生活圈</span>
+                        </label>
+                        <label class="isochrone-toggle">
+                            <input type="checkbox" id="isochrone-10" checked style="--toggle-color: #3b82f6;">
+                            <span class="toggle-label">10分钟生活圈</span>
+                        </label>
+                        <label class="isochrone-toggle">
+                            <input type="checkbox" id="isochrone-15" checked disabled style="--toggle-color: #f97316;">
+                            <span class="toggle-label">15分钟生活圈（必选）</span>
+                        </label>
+                        <label class="isochrone-toggle" style="margin-top: 8px; border-top: 1px dashed #e2e8f0; padding-top: 10px;">
+                            <input type="checkbox" id="show-roads" style="--toggle-color: #6b7280;">
+                            <span class="toggle-label">🛣️ 显示道路网络</span>
                         </label>
                     </div>
                 </section>
@@ -176,15 +191,15 @@
                     <h3>🎨 图例</h3>
                     <div class="legend">
                         <div class="legend-item">
-                            <span class="legend-color" style="background: rgba(46, 204, 113, 0.4);"></span>
+                            <span class="legend-color" style="background: rgba(34, 197, 94, 0.5);"></span>
                             <span>5分钟步行圈</span>
                         </div>
                         <div class="legend-item">
-                            <span class="legend-color" style="background: rgba(52, 152, 219, 0.4);"></span>
+                            <span class="legend-color" style="background: rgba(59, 130, 246, 0.45);"></span>
                             <span>10分钟步行圈</span>
                         </div>
                         <div class="legend-item">
-                            <span class="legend-color" style="background: rgba(155, 89, 182, 0.4);"></span>
+                            <span class="legend-color" style="background: rgba(249, 115, 22, 0.35);"></span>
                             <span>15分钟步行圈</span>
                         </div>
                     </div>
@@ -193,7 +208,7 @@
 
             <footer class="sidebar-footer">
                 <p>© 2026 15分钟生活圈项目</p>
-                <p>基于 OpenStreetMap 数据</p>
+                <p>基于 本地及高德 数据</p>
             </footer>
         </aside>
 
@@ -204,10 +219,15 @@
         <main class="map-container">
             <div id="map"></div>
             
-            <!-- 加载指示器 -->
-            <div class="loading-overlay" id="loading" style="display: none;">
-                <div class="spinner"></div>
-                <p>正在分析...</p>
+            <!-- 分析进度遮罩和面板（在地图内部） -->
+            <div class="map-progress-overlay" id="progress-overlay">
+                <div class="analysis-progress" id="analysis-progress">
+                    <div class="progress-header">
+                        <div class="spinner-small"></div>
+                        <span>正在分析</span>
+                    </div>
+                    <div class="progress-log" id="progress-log"></div>
+                </div>
             </div>
         </main>
     </div>

@@ -1,5 +1,6 @@
 /* ============================================
    15分钟生活圈 - 样式表
+   硬朗科研风格 - 精确与锐利
    ============================================ */
 
 * {
@@ -9,21 +10,24 @@
 }
 
 :root {
-    --primary-color: #3498db;
-    --secondary-color: #2ecc71;
-    --accent-color: #9b59b6;
-    --danger-color: #e74c3c;
-    --warning-color: #f39c12;
-    --dark-color: #2c3e50;
-    --light-color: #ecf0f1;
-    --sidebar-width: 360px;
+    --primary-color: #1a365d;
+    --secondary-color: #2c5282;
+    --accent-color: #c53030;
+    --danger-color: #c53030;
+    --warning-color: #c05621;
+    --dark-color: #1a202c;
+    --light-color: #f7fafc;
+    --border-color: #2d3748;
+    --sidebar-width: 340px;
+    --font-mono: 'SF Mono', 'Consolas', 'Monaco', monospace;
 }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    background-color: var(--light-color);
+    background-color: #e2e8f0;
     color: var(--dark-color);
-    line-height: 1.6;
+    line-height: 1.5;
+    font-size: 14px;
 }
 
 /* 应用容器 */
@@ -40,28 +44,31 @@ body {
 
 .sidebar {
     width: var(--sidebar-width);
-    background: white;
-    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    background: #ffffff;
+    border-right: 2px solid var(--border-color);
     display: flex;
     flex-direction: column;
     z-index: 1000;
 }
 
 .sidebar-header {
-    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    background: var(--primary-color);
     color: white;
-    padding: 24px 20px;
+    padding: 20px 16px;
+    border-bottom: 3px solid var(--accent-color);
 }
 
 .sidebar-header h1 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin-bottom: 4px;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 2px;
+    letter-spacing: 0.5px;
 }
 
 .sidebar-header .subtitle {
-    font-size: 0.9rem;
-    opacity: 0.9;
+    font-size: 0.8rem;
+    opacity: 0.85;
+    font-family: var(--font-mono);
 }
 
 .sidebar-content {
@@ -360,6 +367,13 @@ body {
     color: var(--dark-color);
 }
 
+.category-name .poi-count-badge {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: #718096;
+    margin-left: 2px;
+}
+
 .category-bar {
     height: 6px;
     background: #ddd;
@@ -484,7 +498,143 @@ body {
 }
 
 /* ============================================
-   加载指示器
+   分析进度面板（硬朗风格）
+   ============================================ */
+
+/* 地图区域进度遮罩 */
+.map-progress-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(26, 32, 44, 0.7);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.map-progress-overlay.active {
+    display: flex;
+}
+
+.analysis-progress {
+    width: 420px;
+    max-height: 380px;
+    background: #ffffff;
+    border: 2px solid var(--border-color);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    overflow: hidden;
+}
+
+.progress-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: var(--primary-color);
+    color: white;
+    border-bottom: 3px solid var(--accent-color);
+    font-weight: 600;
+    font-size: 0.95rem;
+    letter-spacing: 0.5px;
+}
+
+.spinner-small {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.progress-log {
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 0;
+    background: #f8fafc;
+}
+
+.progress-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    font-size: 0.82rem;
+    font-family: var(--font-mono);
+    color: var(--dark-color);
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.progress-item:last-child {
+    border-bottom: none;
+}
+
+.progress-item.completed {
+    color: #166534;
+    background: #f0fdf4;
+}
+
+.progress-item.completed .progress-icon {
+    color: #16a34a;
+}
+
+.progress-item.error {
+    color: #991b1b;
+    background: #fef2f2;
+}
+
+.progress-item.error .progress-icon {
+    color: #dc2626;
+}
+
+.progress-item.current {
+    color: var(--primary-color);
+    font-weight: 600;
+    background: #eff6ff;
+}
+
+.progress-icon {
+    flex-shrink: 0;
+    width: 18px;
+    text-align: center;
+    font-weight: 700;
+}
+
+.progress-icon.loading {
+    animation: blink 0.8s step-end infinite;
+}
+
+.progress-text {
+    flex: 1;
+}
+
+.progress-time {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-left: auto;
+    font-weight: 500;
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .analysis-progress {
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        width: auto;
+    }
+}
+
+/* ============================================
+   旧的加载指示器（保留兼容）
    ============================================ */
 
 .loading-overlay {
@@ -583,37 +733,152 @@ body {
 }
 
 .filter-checkbox input[type="checkbox"] {
-    display: none;
+    /* 使用原生复选框，自定义硬朗样式 */
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 2px;
+    cursor: pointer;
+    flex-shrink: 0;
+    position: relative;
+    transition: all 0.15s;
+    background: #fff;
+}
+
+.filter-checkbox input[type="checkbox"]:hover {
+    border-color: var(--primary-color);
+}
+
+.filter-checkbox input[type="checkbox"]:checked {
+    background: var(--check-color, var(--primary-color));
+    border-color: var(--check-color, var(--primary-color));
+}
+
+.filter-checkbox input[type="checkbox"]:checked::after {
+    content: '✓';
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    line-height: 1;
 }
 
 .filter-checkbox .checkmark {
-    width: 18px;
-    height: 18px;
-    border: 2px solid #ddd;
-    border-radius: 4px;
+    display: none;
+}
+
+.filter-checkbox > span:last-child {
+    pointer-events: none;
+    font-size: 0.85rem;
+}
+
+/* ============================================
+   等时圈图层控制 - 硬朗风格
+   ============================================ */
+
+.isochrone-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.isochrone-toggle {
     display: flex;
     align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
+    gap: 10px;
+    cursor: pointer;
+    padding: 10px 8px;
+    border-bottom: 1px solid #e2e8f0;
+    transition: background 0.15s;
+}
+
+.isochrone-toggle:last-child {
+    border-bottom: none;
+}
+
+.isochrone-toggle:hover {
+    background: #f7fafc;
+}
+
+/* 等时圈开关使用原生复选框样式 */
+.isochrone-toggle input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 36px;
+    height: 20px;
+    background: #cbd5e0;
+    border-radius: 2px;
+    position: relative;
+    cursor: pointer;
     flex-shrink: 0;
-    pointer-events: none; /* 确保点击穿透到 label */
+    transition: background 0.2s;
 }
 
-.filter-checkbox > span {
-    pointer-events: none; /* 所有子 span 都不拦截点击 */
+.isochrone-toggle input[type="checkbox"]::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 2px;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
-/* 选中状态：使用 CSS 变量或直接设置背景 */
-.filter-checkbox input[type="checkbox"]:checked + .checkmark {
-    background: var(--check-color, #4a90d9);
-    border-color: var(--check-color, #4a90d9) !important;
+.isochrone-toggle input[type="checkbox"]:checked {
+    background: var(--toggle-color, var(--primary-color));
 }
 
-.filter-checkbox input[type="checkbox"]:checked + .checkmark::after {
-    content: '✓';
-    color: white;
-    font-size: 12px;
-    font-weight: bold;
+.isochrone-toggle input[type="checkbox"]:checked::after {
+    transform: translateX(16px);
+}
+
+.isochrone-toggle input[type="checkbox"]:disabled {
+    background: #a0aec0;
+    cursor: not-allowed;
+}
+
+.isochrone-toggle input[type="checkbox"]:disabled::after {
+    transform: translateX(16px);
+}
+
+.toggle-slider {
+    display: none; /* 不再使用单独的slider元素 */
+}
+
+.toggle-slider.locked::after {
+    transform: translateX(16px);
+}
+
+.toggle-label {
+    font-size: 0.85rem;
+    color: var(--dark-color);
+    font-weight: 500;
+}
+
+.isochrone-toggle:last-child .toggle-label {
+    color: #718096;
+}
+
+.toggle-slider.locked {
+    opacity: 0.7;
+}
+
+.toggle-label {
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.toggle-label small {
+    color: #999;
+    font-size: 0.8em;
 }
 
 /* ============================================

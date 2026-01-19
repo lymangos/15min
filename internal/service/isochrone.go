@@ -107,3 +107,16 @@ func (s *IsochroneService) CalculateAsGeoJSON(ctx context.Context, req *model.Is
 
 	return fc, nil
 }
+
+// GetReachableRoads 获取可达道路网络
+func (s *IsochroneService) GetReachableRoads(ctx context.Context, lng, lat float64, minutes int, walkSpeed float64) (string, error) {
+	query := `SELECT road_geojson FROM get_reachable_roads($1, $2, $3, $4)`
+	
+	var geojson string
+	err := s.db.Pool.QueryRow(ctx, query, lng, lat, minutes, walkSpeed).Scan(&geojson)
+	if err != nil {
+		return "", fmt.Errorf("get reachable roads: %w", err)
+	}
+	
+	return geojson, nil
+}
