@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"strings"
 
 	"github.com/yourname/15min-life-circle/internal/config"
@@ -121,8 +122,20 @@ func (s *EvaluationService) Evaluate(ctx context.Context, req *model.EvaluationR
 		TimeThresholds: []int{5, 10, 15},
 		WalkSpeed:      req.WalkSpeed,
 	}
+	var iso15GeoJSON string
 	if isoFC, err := isoService.CalculateAsGeoJSON(ctx, isoReq); err == nil {
 		result.Isochrone = isoFC
+		// 获取15分钟等时圈的GeoJSON用于过滤POI
+		if isoResult, err := isoService.Calculate(ctx, isoReq); err == nil {
+			for _, poly := range isoResult.Polygons {
+				if poly.Minutes == 15 {
+					if geojsonBytes, err := json.Marshal(poly.Geometry); err == nil {
+						iso15GeoJSON = string(geojsonBytes)
+					}
+					break
+				}
+			}
+		}
 	}
 
 	// 获取 POI GeoJSON（使用用户配置的步行速度）
@@ -132,14 +145,28 @@ func (s *EvaluationService) Evaluate(ctx context.Context, req *model.EvaluationR
 			// 计算搜索半径（步行速度 * 15分钟）
 			radius := int(req.WalkSpeed * 1000 / 60 * 15)
 			if amapPOIs, err := s.amapService.SearchNearby(req.Lng, req.Lat, radius); err == nil {
+				// 过滤高德POI：只保留等时圈内的
+				if iso15GeoJSON != "" {
+					filteredAmapPOIs := s.filterPOIsInIsochrone(ctx, amapPOIs, iso15GeoJSON)
+					log.Printf("高德POI过滤：搜索 %d -> 圈内 %d", len(amapPOIs), len(filteredAmapPOIs))
+					amapPOIs = filteredAmapPOIs
+				}
 				// 合并去重
 				pois = s.mergePOIs(pois, amapPOIs)
-				log.Printf("合并高德POI：本地 %d + 高德 %d = 总计 %d", len(pois)-len(amapPOIs), len(amapPOIs), len(pois))
+				log.Printf("合并高德POI：总计 %d", len(pois))
 			} else {
 				log.Printf("高德POI查询失败: %v", err)
 			}
 		}
 		result.POIs = s.poiService.POIsAsGeoJSON(pois)
+	}
+
+	// 获取可达道路网络
+	if roadsJSON, err := isoService.GetReachableRoads(ctx, req.Lng, req.Lat, 15, req.WalkSpeed); err == nil && roadsJSON != "" {
+		var roads interface{}
+		if json.Unmarshal([]byte(roadsJSON), &roads) == nil {
+			result.Roads = roads
+		}
 	}
 
 	return result, nil
@@ -150,14 +177,14 @@ func (s *EvaluationService) mergePOIs(localPOIs []model.POI, amapPOIs []model.PO
 	// 用于去重的集合（基于位置和名称）
 	seen := make(map[string]bool)
 	
-	// 先添加本地POI
-	for _, poi := range localPOIs {
+	// 先添加本地POI并标记source
+	result := make([]model.POI, len(localPOIs))
+	for i, poi := range localPOIs {
 		key := fmt.Sprintf("%.5f,%.5f,%s", poi.Lng, poi.Lat, poi.Name)
 		seen[key] = true
 		poi.Source = "osm"
+		result[i] = poi
 	}
-	
-	result := localPOIs
 	
 	// 添加不重复的高德POI
 	for _, poi := range amapPOIs {
@@ -169,7 +196,8 @@ func (s *EvaluationService) mergePOIs(localPOIs []model.POI, amapPOIs []model.PO
 			// 还可以检查附近是否有同名POI
 			for _, local := range localPOIs {
 				dist := distance(poi.Lng, poi.Lat, local.Lng, local.Lat)
-				if dist < 50 && strings.Contains(poi.Name, local.Name) || strings.Contains(local.Name, poi.Name) {
+				// 修复运算符优先级问题
+				if dist < 50 && (strings.Contains(poi.Name, local.Name) || strings.Contains(local.Name, poi.Name)) {
 					isDuplicate = true
 					break
 				}
@@ -191,7 +219,73 @@ func distance(lng1, lat1, lng2, lat2 float64) float64 {
 	// 1度纬度约111km，1度经度在杭州约90km
 	dLat := (lat2 - lat1) * 111000
 	dLng := (lng2 - lng1) * 90000
-	return (dLat*dLat + dLng*dLng) / 2 // 简化平方根
+	// 修复: 使用 math.Sqrt 计算实际距离
+	return math.Sqrt(dLat*dLat + dLng*dLng)
+}
+
+// filterPOIsInIsochrone 使用数据库空间查询过滤POI是否在等时圈内
+func (s *EvaluationService) filterPOIsInIsochrone(ctx context.Context, pois []model.POI, isochroneGeoJSON string) []model.POI {
+	if isochroneGeoJSON == "" || len(pois) == 0 {
+		return pois
+	}
+
+	// 批量查询优化：构建临时表并一次性检查所有点
+	// 构建POI点数组用于批量查询
+	type poiPoint struct {
+		Idx int
+		Lng float64
+		Lat float64
+	}
+	points := make([]poiPoint, len(pois))
+	for i, poi := range pois {
+		points[i] = poiPoint{Idx: i, Lng: poi.Lng, Lat: poi.Lat}
+	}
+
+	// 使用单次批量查询检查所有点
+	query := `
+		WITH poi_points AS (
+			SELECT idx, ST_SetSRID(ST_MakePoint(lng, lat), 4326) as geom
+			FROM unnest($1::int[], $2::float8[], $3::float8[]) AS t(idx, lng, lat)
+		),
+		isochrone AS (
+			SELECT ST_GeomFromGeoJSON($4) as geom
+		)
+		SELECT p.idx 
+		FROM poi_points p, isochrone i
+		WHERE ST_Within(p.geom, i.geom)
+	`
+
+	idxs := make([]int, len(points))
+	lngs := make([]float64, len(points))
+	lats := make([]float64, len(points))
+	for i, p := range points {
+		idxs[i] = p.Idx
+		lngs[i] = p.Lng
+		lats[i] = p.Lat
+	}
+
+	rows, err := s.db.Pool.Query(ctx, query, idxs, lngs, lats, isochroneGeoJSON)
+	if err != nil {
+		log.Printf("批量POI过滤查询失败: %v", err)
+		return pois // 出错时返回原始POI
+	}
+	defer rows.Close()
+
+	validIdxs := make(map[int]bool)
+	for rows.Next() {
+		var idx int
+		if err := rows.Scan(&idx); err == nil {
+			validIdxs[idx] = true
+		}
+	}
+
+	var filtered []model.POI
+	for i, poi := range pois {
+		if validIdxs[i] {
+			filtered = append(filtered, poi)
+		}
+	}
+	return filtered
 }
 
 // generateSuggestions 根据评分生成改进建议

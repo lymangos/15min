@@ -50,28 +50,28 @@ const CONFIG = {
     // 注意：实际使用时请替换为您自己的 Key
     amapKey: '',  // 留空则使用本地 Nominatim
     
-    // 等时圈样式 - 科研论文风格（低饱和度，清晰边界）
+    // 等时圈样式 - 参照示例图片
     isochroneStyles: {
         5: { 
-            color: '#166534', 
-            fillColor: '#86efac', 
-            fillOpacity: 0.35, 
+            color: '#15803d',      // 深绿色边框
+            fillColor: '#22c55e',   // 绿色填充
+            fillOpacity: 0.4, 
             weight: 2.5,
             dashArray: null
         },
         10: { 
-            color: '#1e40af', 
-            fillColor: '#93c5fd', 
-            fillOpacity: 0.25, 
+            color: '#1d4ed8',      // 深蓝色边框
+            fillColor: '#3b82f6',   // 蓝色填充
+            fillOpacity: 0.35, 
             weight: 2,
-            dashArray: '8, 4'
+            dashArray: null
         },
         15: { 
-            color: '#374151', 
-            fillColor: '#d1d5db', 
-            fillOpacity: 0.12, 
+            color: '#c2410c',      // 深橙色边框
+            fillColor: '#f97316',   // 橙色填充
+            fillOpacity: 0.25, 
             weight: 1.5,
-            dashArray: '4, 4'
+            dashArray: null
         }
     },
     
@@ -109,6 +109,7 @@ const state = {
     currentMarker: null,
     isochroneLayer: null,
     poiLayer: null,
+    roadsLayer: null,        // 道路网络图层
     selectedLocation: null,
     // 新增状态
     walkSpeed: 5.0,          // 步行速度 km/h
@@ -127,12 +128,14 @@ const state = {
         10: true,
         15: true
     },
+    roadsVisible: false,     // 道路网络可见性
     isochroneLayers: {       // 分开存储各等时圈图层
         5: null,
         10: null,
         15: null
     },
     currentIsochroneData: null, // 缓存当前等时圈数据
+    currentRoadsData: null,  // 缓存当前道路网络数据
     currentPOIs: null,       // 当前 POI features 数组（用于统计）
     currentPOIsGeoJSON: null, // 当前 POI GeoJSON 对象（用于渲染）
     currentResult: null,     // 当前分析结果缓存
@@ -246,7 +249,8 @@ function initMap() {
     // 添加比例尺
     L.control.scale({ imperial: false }).addTo(state.map);
     
-    // 初始化图层组
+    // 初始化图层组（道路在最底层，等时圈在上面，POI在最上面）
+    state.roadsLayer = L.layerGroup().addTo(state.map);
     state.isochroneLayer = L.layerGroup().addTo(state.map);
     state.poiLayer = L.layerGroup().addTo(state.map);
     
@@ -282,7 +286,11 @@ function initEventListeners() {
     
     // 等时圈图层开关
     document.querySelectorAll('#isochrone-control-panel input[type="checkbox"]').forEach(checkbox => {
-        checkbox.addEventListener('change', handleIsochroneToggle);
+        if (checkbox.id === 'show-roads') {
+            checkbox.addEventListener('change', handleRoadsToggle);
+        } else {
+            checkbox.addEventListener('change', handleIsochroneToggle);
+        }
     });
     
     // 搜索功能
@@ -826,10 +834,19 @@ function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// 请求去重：存储当前正在进行的分析请求
+let currentAnalysisController = null;
+
 /**
  * 分析指定点
  */
 async function analyzePoint(lng, lat) {
+    // 取消之前未完成的请求
+    if (currentAnalysisController) {
+        currentAnalysisController.abort();
+        currentAnalysisController = null;
+    }
+    
     // 显示进度面板
     showProgress();
     addProgressItem('开始分析坐标点...');
@@ -837,8 +854,8 @@ async function analyzePoint(lng, lat) {
     
     try {
         // 设置超时控制（60秒，新算法需要更多时间）
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000);
+        currentAnalysisController = new AbortController();
+        const timeoutId = setTimeout(() => currentAnalysisController?.abort(), 60000);
         
         addProgressItem('计算步行可达范围（等时圈）...');
         
@@ -851,10 +868,11 @@ async function analyzePoint(lng, lat) {
                 time_threshold: 15,
                 walk_speed: state.walkSpeed  // 使用用户配置的速度
             }),
-            signal: controller.signal
+            signal: currentAnalysisController.signal
         });
         
         clearTimeout(timeoutId);
+        currentAnalysisController = null;
         
         updateLastProgress('completed');
         addProgressItem('正在解析服务器响应...');
@@ -875,6 +893,11 @@ async function analyzePoint(lng, lat) {
         // currentPOIs: features 数组，用于 renderPOISourceStats
         state.currentPOIsGeoJSON = result.pois;
         state.currentPOIs = result.pois && result.pois.features ? result.pois.features : [];
+        
+        // 渲染道路网络（在等时圈下面）
+        if (result.roads) {
+            renderRoads(result.roads);
+        }
         
         // 渲染等时圈
         renderIsochrone(result.isochrone);
@@ -990,6 +1013,68 @@ function handleIsochroneToggle(e) {
     } else {
         // 移除图层
         state.isochroneLayer.removeLayer(layer);
+    }
+}
+
+/**
+ * 渲染道路网络
+ */
+function renderRoads(roadsGeoJSON) {
+    state.roadsLayer.clearLayers();
+    
+    if (!roadsGeoJSON || !roadsGeoJSON.features) return;
+    
+    // 缓存数据
+    state.currentRoadsData = roadsGeoJSON;
+    
+    // 创建道路图层
+    const roadsLayerGeoJSON = L.geoJSON(roadsGeoJSON, {
+        style: (feature) => {
+            const cost = feature.properties?.cost || 0;
+            // 根据到达时间渐变颜色
+            let color = '#4a5568';
+            let opacity = 0.6;
+            
+            if (cost <= 5) {
+                color = '#22c55e'; // 5分钟内 - 绿色
+                opacity = 0.8;
+            } else if (cost <= 10) {
+                color = '#3b82f6'; // 10分钟内 - 蓝色
+                opacity = 0.7;
+            } else {
+                color = '#f97316'; // 15分钟内 - 橙色
+                opacity = 0.5;
+            }
+            
+            return {
+                color: color,
+                weight: 2,
+                opacity: opacity
+            };
+        }
+    });
+    
+    // 根据可见性添加
+    if (state.roadsVisible) {
+        roadsLayerGeoJSON.addTo(state.roadsLayer);
+    }
+    
+    // 保存图层引用
+    state.roadsLayerGeoJSON = roadsLayerGeoJSON;
+}
+
+/**
+ * 处理道路网络开关
+ */
+function handleRoadsToggle(e) {
+    state.roadsVisible = e.target.checked;
+    
+    if (!state.roadsLayerGeoJSON) return;
+    
+    if (state.roadsVisible) {
+        state.roadsLayerGeoJSON.addTo(state.roadsLayer);
+    } else {
+        state.roadsLayer.clearLayers();
     }
 }
 
@@ -1157,16 +1242,27 @@ function renderEvaluationResult(result) {
 function renderCategoryScores(scores) {
     const container = document.getElementById('category-scores');
     
+    // 从实际 POI 数据统计各分类数量
+    const categoryPOICounts = {};
+    if (state.currentPOIs && Array.isArray(state.currentPOIs)) {
+        state.currentPOIs.forEach(feature => {
+            const cat = feature.properties?.category || 'other';
+            categoryPOICounts[cat] = (categoryPOICounts[cat] || 0) + 1;
+        });
+    }
+    
     container.innerHTML = scores.map(cs => {
         const icon = CONFIG.categoryIcons[cs.category] || '📍';
         const color = CONFIG.categoryColors[cs.category] || '#666';
         const score = cs.score || 0;
+        // 使用实际 POI 数量，而不是后端返回的 poi_count
+        const poiCount = categoryPOICounts[cs.category] || 0;
         
         return `
             <div class="category-item">
                 <span class="category-icon">${icon}</span>
                 <div class="category-info">
-                    <div class="category-name">${cs.name}</div>
+                    <div class="category-name">${cs.name} <span class="poi-count-badge">(${poiCount}处)</span></div>
                     <div class="category-bar">
                         <div class="category-bar-fill" style="width: ${score}%; background: ${color};"></div>
                     </div>
@@ -1251,11 +1347,40 @@ function showLoading(show) {
 }
 
 /**
- * 显示错误消息
+ * 显示错误消息（使用Toast通知）
  */
 function showError(message) {
-    // 简单的错误提示
-    alert(message);
+    // 创建或复用Toast容器
+    let toast = document.getElementById('error-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'error-toast';
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #c53030;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            opacity: 0;
+            transition: opacity 0.3s;
+        `;
+        document.body.appendChild(toast);
+    }
+    
+    toast.textContent = message;
+    toast.style.opacity = '1';
+    
+    // 3秒后自动隐藏
+    setTimeout(() => {
+        toast.style.opacity = '0';
+    }, 3000);
 }
 
 /**

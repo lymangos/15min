@@ -43,6 +43,8 @@ type EvaluationResult struct {
 	Isochrone *FeatureCollection `json:"isochrone"`
 	// 圈内 POI
 	POIs *FeatureCollection `json:"pois"`
+	// 可达道路网络 GeoJSON（可选）
+	Roads interface{} `json:"roads,omitempty"`
 	// 评价说明
 	Summary string `json:"summary"`
 	// 改进建议
