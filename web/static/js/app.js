@@ -749,20 +749,28 @@ function addProgressItem(message, status = 'loading') {
     const elapsed = progressState.startTime ? 
         ((Date.now() - progressState.startTime) / 1000).toFixed(1) : '0.0';
     
-    // 将之前的 loading 项标记为 completed
+    // 将之前的 loading 项标记为 completed，并更新其时间
     const prevItems = log.querySelectorAll('.progress-item.current');
     prevItems.forEach(item => {
         item.classList.remove('current');
         item.classList.add('completed');
         const icon = item.querySelector('.progress-icon');
-        if (icon) icon.textContent = '✓';
+        if (icon) {
+            icon.classList.remove('loading');
+            icon.textContent = '✓';
+        }
+        // 更新时间为当前时间
+        const timeEl = item.querySelector('.progress-time');
+        if (timeEl) {
+            timeEl.textContent = elapsed + 's';
+        }
     });
     
     // 创建新日志项
     const item = document.createElement('div');
     item.className = `progress-item ${status === 'loading' ? 'current' : status}`;
     
-    let icon = '⏳';
+    let icon = '▶';
     if (status === 'completed') icon = '✓';
     if (status === 'error') icon = '✗';
     
@@ -787,6 +795,9 @@ function updateLastProgress(status) {
     const log = document.getElementById('progress-log');
     if (!log) return;
     
+    const elapsed = progressState.startTime ? 
+        ((Date.now() - progressState.startTime) / 1000).toFixed(1) : '0.0';
+    
     const lastItem = log.querySelector('.progress-item:last-child');
     if (lastItem) {
         lastItem.classList.remove('current', 'loading');
@@ -796,6 +807,11 @@ function updateLastProgress(status) {
             icon.classList.remove('loading');
             icon.textContent = status === 'completed' ? '✓' : '✗';
         }
+        // 更新完成时间
+        const timeEl = lastItem.querySelector('.progress-time');
+        if (timeEl) {
+            timeEl.textContent = elapsed + 's';
+        }
     }
 }
 
@@ -804,12 +820,20 @@ function updateLastProgress(status) {
 // ============================================
 
 /**
+ * 延迟函数，让浏览器有机会重绘UI
+ */
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
  * 分析指定点
  */
 async function analyzePoint(lng, lat) {
     // 显示进度面板
     showProgress();
     addProgressItem('开始分析坐标点...');
+    await delay(50); // 让UI更新
     
     try {
         // 设置超时控制（60秒，新算法需要更多时间）
@@ -834,6 +858,7 @@ async function analyzePoint(lng, lat) {
         
         updateLastProgress('completed');
         addProgressItem('正在解析服务器响应...');
+        await delay(30);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -843,6 +868,7 @@ async function analyzePoint(lng, lat) {
         
         updateLastProgress('completed');
         addProgressItem('渲染等时圈...');
+        await delay(30);
         
         // 缓存 POI 数据
         // currentPOIsGeoJSON: 完整的 GeoJSON 对象，用于 renderPOIs
@@ -855,12 +881,14 @@ async function analyzePoint(lng, lat) {
         
         updateLastProgress('completed');
         addProgressItem(`渲染 ${state.currentPOIs.length} 个设施点...`);
+        await delay(30);
         
         // 渲染POI
         renderPOIs(result.pois);
         
         updateLastProgress('completed');
         addProgressItem('计算评估得分...');
+        await delay(30);
         
         // 渲染评估结果
         renderEvaluationResult(result);
