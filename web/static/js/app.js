@@ -712,15 +712,10 @@ const progressState = {
 function showProgress() {
     console.log('[Progress] showProgress called');
     const overlay = document.getElementById('progress-overlay');
-    const panel = document.getElementById('analysis-progress');
     const log = document.getElementById('progress-log');
     
-    if (overlay) {
+    if (overlay && log) {
         overlay.classList.add('active');
-    }
-    
-    if (panel && log) {
-        panel.classList.add('active');
         log.innerHTML = '';
         progressState.startTime = Date.now();
         progressState.items = [];
@@ -735,12 +730,10 @@ function showProgress() {
  */
 function hideProgress() {
     const overlay = document.getElementById('progress-overlay');
-    const panel = document.getElementById('analysis-progress');
     
     // 延迟隐藏，让用户看到最终状态
     setTimeout(() => {
         if (overlay) overlay.classList.remove('active');
-        if (panel) panel.classList.remove('active');
     }, 1500);
 }
 

@@ -494,51 +494,44 @@ body {
    分析进度面板（硬朗风格）
    ============================================ */
 
-/* 进度面板遮罩 */
-.progress-overlay {
-    position: fixed;
+/* 地图区域进度遮罩 */
+.map-progress-overlay {
+    position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 99998;
+    background: rgba(26, 32, 44, 0.7);
+    z-index: 1000;
     display: none;
+    align-items: center;
+    justify-content: center;
 }
 
-.progress-overlay.active {
-    display: block;
+.map-progress-overlay.active {
+    display: flex;
 }
 
 .analysis-progress {
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    width: 400px;
-    max-height: 360px;
-    background: #ffffff !important;
-    border-radius: 0;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
-    z-index: 99999 !important;
-    overflow: hidden;
+    width: 420px;
+    max-height: 380px;
+    background: #ffffff;
     border: 2px solid var(--border-color);
-    display: none;
-}
-
-.analysis-progress.active {
-    display: block !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    overflow: hidden;
 }
 
 .progress-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 14px 16px;
+    gap: 12px;
+    padding: 14px 18px;
     background: var(--primary-color);
     color: white;
     border-bottom: 3px solid var(--accent-color);
-    font-weight: 500;
+    font-weight: 600;
+    font-size: 0.95rem;
+    letter-spacing: 0.5px;
 }
 
 .spinner-small {

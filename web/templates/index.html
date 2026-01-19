@@ -217,17 +217,18 @@
         <!-- 地图容器 -->
         <main class="map-container">
             <div id="map"></div>
+            
+            <!-- 分析进度遮罩和面板（在地图内部） -->
+            <div class="map-progress-overlay" id="progress-overlay">
+                <div class="analysis-progress" id="analysis-progress">
+                    <div class="progress-header">
+                        <div class="spinner-small"></div>
+                        <span>正在分析</span>
+                    </div>
+                    <div class="progress-log" id="progress-log"></div>
+                </div>
+            </div>
         </main>
-    </div>
-
-    <!-- 分析进度遮罩和面板 -->
-    <div class="progress-overlay" id="progress-overlay"></div>
-    <div class="analysis-progress" id="analysis-progress">
-        <div class="progress-header">
-            <div class="spinner-small"></div>
-            <span>分析进行中</span>
-        </div>
-        <div class="progress-log" id="progress-log"></div>
     </div>
 
     <!-- Leaflet JS -->
