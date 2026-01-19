@@ -193,7 +193,7 @@
 
             <footer class="sidebar-footer">
                 <p>© 2026 15分钟生活圈项目</p>
-                <p>基于 OpenStreetMap 数据</p>
+                <p>基于 本地及高德 数据</p>
             </footer>
         </aside>
 
@@ -204,10 +204,13 @@
         <main class="map-container">
             <div id="map"></div>
             
-            <!-- 加载指示器 -->
-            <div class="loading-overlay" id="loading" style="display: none;">
-                <div class="spinner"></div>
-                <p>正在分析...</p>
+            <!-- 分析进度面板 -->
+            <div class="analysis-progress" id="analysis-progress" style="display: none;">
+                <div class="progress-header">
+                    <div class="spinner-small"></div>
+                    <span>正在分析...</span>
+                </div>
+                <div class="progress-log" id="progress-log"></div>
             </div>
         </main>
     </div>

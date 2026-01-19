@@ -661,6 +661,107 @@ function updateMarker(lat, lng) {
 }
 
 // ============================================
+// 进度日志管理
+// ============================================
+
+/**
+ * 进度日志状态
+ */
+const progressState = {
+    startTime: null,
+    items: []
+};
+
+/**
+ * 显示进度面板
+ */
+function showProgress() {
+    const panel = document.getElementById('analysis-progress');
+    const log = document.getElementById('progress-log');
+    if (panel && log) {
+        panel.style.display = 'block';
+        log.innerHTML = '';
+        progressState.startTime = Date.now();
+        progressState.items = [];
+    }
+}
+
+/**
+ * 隐藏进度面板
+ */
+function hideProgress() {
+    const panel = document.getElementById('analysis-progress');
+    if (panel) {
+        // 延迟隐藏，让用户看到最终状态
+        setTimeout(() => {
+            panel.style.display = 'none';
+        }, 2000);
+    }
+}
+
+/**
+ * 添加进度日志项
+ * @param {string} message - 日志消息
+ * @param {string} status - 状态: 'loading' | 'completed' | 'error'
+ */
+function addProgressItem(message, status = 'loading') {
+    const log = document.getElementById('progress-log');
+    if (!log) return;
+    
+    const elapsed = progressState.startTime ? 
+        ((Date.now() - progressState.startTime) / 1000).toFixed(1) : '0.0';
+    
+    // 将之前的 loading 项标记为 completed
+    const prevItems = log.querySelectorAll('.progress-item.current');
+    prevItems.forEach(item => {
+        item.classList.remove('current');
+        item.classList.add('completed');
+        const icon = item.querySelector('.progress-icon');
+        if (icon) icon.textContent = '✓';
+    });
+    
+    // 创建新日志项
+    const item = document.createElement('div');
+    item.className = `progress-item ${status === 'loading' ? 'current' : status}`;
+    
+    let icon = '⏳';
+    if (status === 'completed') icon = '✓';
+    if (status === 'error') icon = '✗';
+    
+    item.innerHTML = `
+        <span class="progress-icon ${status === 'loading' ? 'loading' : ''}">${icon}</span>
+        <span class="progress-text">${message}</span>
+        <span class="progress-time">${elapsed}s</span>
+    `;
+    
+    log.appendChild(item);
+    
+    // 自动滚动到底部
+    log.scrollTop = log.scrollHeight;
+    
+    progressState.items.push({ message, status, elapsed });
+}
+
+/**
+ * 更新最后一项的状态
+ */
+function updateLastProgress(status) {
+    const log = document.getElementById('progress-log');
+    if (!log) return;
+    
+    const lastItem = log.querySelector('.progress-item:last-child');
+    if (lastItem) {
+        lastItem.classList.remove('current', 'loading');
+        lastItem.classList.add(status);
+        const icon = lastItem.querySelector('.progress-icon');
+        if (icon) {
+            icon.classList.remove('loading');
+            icon.textContent = status === 'completed' ? '✓' : '✗';
+        }
+    }
+}
+
+// ============================================
 // API 调用
 // ============================================
 
@@ -668,12 +769,16 @@ function updateMarker(lat, lng) {
  * 分析指定点
  */
 async function analyzePoint(lng, lat) {
-    showLoading(true);
+    // 显示进度面板
+    showProgress();
+    addProgressItem('开始分析坐标点...');
     
     try {
-        // 设置超时控制（30秒）
+        // 设置超时控制（60秒，新算法需要更多时间）
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+        
+        addProgressItem('计算步行可达范围（等时圈）...');
         
         const response = await fetch(`${CONFIG.apiBase}/analyze`, {
             method: 'POST',
@@ -689,11 +794,17 @@ async function analyzePoint(lng, lat) {
         
         clearTimeout(timeoutId);
         
+        updateLastProgress('completed');
+        addProgressItem('正在解析服务器响应...');
+        
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const result = await response.json();
+        
+        updateLastProgress('completed');
+        addProgressItem('渲染等时圈...');
         
         // 缓存 POI 数据
         // currentPOIsGeoJSON: 完整的 GeoJSON 对象，用于 renderPOIs
@@ -701,22 +812,44 @@ async function analyzePoint(lng, lat) {
         state.currentPOIsGeoJSON = result.pois;
         state.currentPOIs = result.pois && result.pois.features ? result.pois.features : [];
         
-        // 渲染结果
+        // 渲染等时圈
         renderIsochrone(result.isochrone);
+        
+        updateLastProgress('completed');
+        addProgressItem(`渲染 ${state.currentPOIs.length} 个设施点...`);
+        
+        // 渲染POI
         renderPOIs(result.pois);
+        
+        updateLastProgress('completed');
+        addProgressItem('计算评估得分...');
+        
+        // 渲染评估结果
         renderEvaluationResult(result);
+        
+        updateLastProgress('completed');
+        addProgressItem('分析完成！', 'completed');
+        
+        // 隐藏进度面板
+        hideProgress();
         
     } catch (error) {
         console.error('Analysis failed:', error);
         console.error('Error name:', error.name);
         console.error('Error message:', error.message);
         
+        // 更新进度显示错误
+        updateLastProgress('error');
+        
         // 根据错误类型显示不同提示
         if (error.name === 'AbortError') {
-            showError('请求超时，请检查网络连接后重试');
+            addProgressItem('请求超时（60秒），请重试', 'error');
+            showError('请求超时，服务器响应时间过长，请稍后重试');
         } else if (error.message && error.message.includes('Failed to fetch')) {
+            addProgressItem('网络连接失败', 'error');
             showError('网络连接失败，请检查网络');
         } else {
+            addProgressItem(`错误: ${error.message || '未知错误'}`, 'error');
             showError('分析失败: ' + (error.message || '请重试'));
         }
         
@@ -724,8 +857,6 @@ async function analyzePoint(lng, lat) {
         if (window.location.hostname === 'localhost') {
             renderMockResult(lng, lat);
         }
-    } finally {
-        showLoading(false);
     }
 }
 
