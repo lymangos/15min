@@ -202,27 +202,14 @@ function initMap() {
         bounceAtZoomLimits: false    // 缩放限制时不反弹
     }).setView(CONFIG.defaultCenter, CONFIG.defaultZoom);
     
-    // 添加底图 - 使用高德瓦片（国内访问更快）
-    // 备选：OSM 官方瓦片
+    // 添加底图 - 使用高德瓦片（国内访问快，边界合规）
     const amapTile = L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
         subdomains: ['1', '2', '3', '4'],
         maxZoom: 18,
         attribution: '&copy; 高德地图'
     });
     
-    const osmTile = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19
-    });
-    
-    // 默认使用高德瓦片（国内更快）
     amapTile.addTo(state.map);
-    
-    // 保存瓦片图层引用，方便切换
-    state.baseLayers = {
-        '高德地图': amapTile,
-        'OpenStreetMap': osmTile
-    };
     
     // 添加城市边界可视化
     updateCityBoundsRect();
