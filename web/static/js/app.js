@@ -676,13 +676,20 @@ const progressState = {
  * 显示进度面板
  */
 function showProgress() {
+    console.log('[Progress] showProgress called');
     const panel = document.getElementById('analysis-progress');
     const log = document.getElementById('progress-log');
+    console.log('[Progress] panel:', panel, 'log:', log);
     if (panel && log) {
         panel.style.display = 'block';
+        panel.style.visibility = 'visible';
+        panel.style.opacity = '1';
         log.innerHTML = '';
         progressState.startTime = Date.now();
         progressState.items = [];
+        console.log('[Progress] Panel shown');
+    } else {
+        console.error('[Progress] Panel elements not found!');
     }
 }
 

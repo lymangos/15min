@@ -1,5 +1,5 @@
 -- ============================================================
--- v2.1 优化版等时圈计算函数
+-- v2.1 优化版等时圈计算函数（修复列名歧义）
 -- 单次路网分析，批量生成多个等时圈
 -- ============================================================
 
@@ -8,6 +8,7 @@
 -- ============================================================
 
 DROP FUNCTION IF EXISTS calculate_isochrones_optimized(DOUBLE PRECISION, DOUBLE PRECISION, INTEGER[], DOUBLE PRECISION);
+DROP FUNCTION IF EXISTS calculate_isochrones(DOUBLE PRECISION, DOUBLE PRECISION, INTEGER[], DOUBLE PRECISION);
 
 CREATE OR REPLACE FUNCTION calculate_isochrones_optimized(
     p_lng DOUBLE PRECISION,
@@ -27,6 +28,8 @@ DECLARE
     v_origin GEOMETRY;
     v_threshold INTEGER;
     v_result GEOMETRY;
+    v_collected GEOMETRY;
+    v_cnt INTEGER;
 BEGIN
     v_origin := ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326);
     
@@ -44,11 +47,11 @@ BEGIN
                 ),
                 4326
             );
-            RETURN QUERY SELECT 
-                v_threshold,
-                (p_walk_speed_kmh * v_threshold / 60.0 * 1000),
-                v_result,
-                ST_AsGeoJSON(v_result);
+            minutes := v_threshold;
+            distance_m := p_walk_speed_kmh * v_threshold / 60.0 * 1000;
+            geom := v_result;
+            geojson := ST_AsGeoJSON(v_result);
+            RETURN NEXT;
         END LOOP;
         RETURN;
     END IF;
@@ -57,12 +60,11 @@ BEGIN
     SELECT MAX(t) INTO v_max_cost FROM unnest(p_time_thresholds) AS t;
     
     -- 创建临时表存储所有可达节点（只做一次路网分析）
-    CREATE TEMP TABLE IF NOT EXISTS temp_reachable_nodes (
+    DROP TABLE IF EXISTS temp_reachable_nodes;
+    CREATE TEMP TABLE temp_reachable_nodes (
         node BIGINT,
         agg_cost DOUBLE PRECISION
-    ) ON COMMIT DROP;
-    
-    TRUNCATE temp_reachable_nodes;
+    );
     
     INSERT INTO temp_reachable_nodes (node, agg_cost)
     SELECT dd.node, dd.agg_cost
@@ -81,66 +83,57 @@ BEGIN
     -- 为每个时间阈值生成等时圈（复用可达节点数据）
     FOREACH v_threshold IN ARRAY p_time_thresholds
     LOOP
-        WITH 
-        -- 筛选该时间阈值内的节点
-        filtered_nodes AS (
-            SELECT node FROM temp_reachable_nodes WHERE agg_cost <= v_threshold
-        ),
-        -- 获取节点几何
-        node_points AS (
+        -- 收集所有点到变量
+        SELECT ST_Collect(pt.the_geom), COUNT(*) 
+        INTO v_collected, v_cnt
+        FROM (
+            -- 节点几何
             SELECT v.the_geom
-            FROM filtered_nodes fn
-            JOIN ways_vertices_pgr v ON fn.node = v.id
-        ),
-        -- 获取可达道路线段
-        reachable_edges AS (
-            SELECT DISTINCT w.the_geom
-            FROM filtered_nodes fn
-            JOIN ways w ON (w.source = fn.node OR w.target = fn.node)
-            WHERE EXISTS (
-                SELECT 1 FROM filtered_nodes fn2 
-                WHERE fn2.node = w.source OR fn2.node = w.target
-            )
-        ),
-        -- 合并所有点
-        all_points AS (
-            SELECT the_geom FROM node_points
+            FROM temp_reachable_nodes trn
+            JOIN ways_vertices_pgr v ON trn.node = v.id
+            WHERE trn.agg_cost <= v_threshold
             UNION ALL
-            SELECT ST_StartPoint(the_geom) FROM reachable_edges
+            -- 可达道路的起点/终点/中点
+            SELECT ST_StartPoint(w.the_geom)
+            FROM ways w
+            WHERE EXISTS (SELECT 1 FROM temp_reachable_nodes t1 WHERE t1.node = w.source AND t1.agg_cost <= v_threshold)
+              AND EXISTS (SELECT 1 FROM temp_reachable_nodes t2 WHERE t2.node = w.target AND t2.agg_cost <= v_threshold)
             UNION ALL
-            SELECT ST_EndPoint(the_geom) FROM reachable_edges
+            SELECT ST_EndPoint(w.the_geom)
+            FROM ways w
+            WHERE EXISTS (SELECT 1 FROM temp_reachable_nodes t1 WHERE t1.node = w.source AND t1.agg_cost <= v_threshold)
+              AND EXISTS (SELECT 1 FROM temp_reachable_nodes t2 WHERE t2.node = w.target AND t2.agg_cost <= v_threshold)
             UNION ALL
-            SELECT ST_LineInterpolatePoint(the_geom, 0.5) FROM reachable_edges WHERE ST_Length(the_geom) > 0.0001
-        ),
-        collected AS (
-            SELECT ST_Collect(the_geom) AS geom, COUNT(*) AS cnt
-            FROM all_points
-        )
-        SELECT 
-            CASE 
-                WHEN cnt < 10 THEN 
-                    ST_Transform(
-                        ST_Buffer(ST_Transform(v_origin, 3857), p_walk_speed_kmh * v_threshold / 60.0 * 1000),
-                        4326
-                    )
-                ELSE 
-                    COALESCE(
-                        ST_ConcaveHull(geom, 0.5),  -- 稍微放宽凹度参数提升性能
-                        ST_ConvexHull(geom),
-                        ST_Transform(
-                            ST_Buffer(ST_Transform(v_origin, 3857), p_walk_speed_kmh * v_threshold / 60.0 * 1000),
-                            4326
-                        )
-                    )
-            END
-        INTO v_result
-        FROM collected;
+            SELECT ST_LineInterpolatePoint(w.the_geom, 0.5)
+            FROM ways w
+            WHERE EXISTS (SELECT 1 FROM temp_reachable_nodes t1 WHERE t1.node = w.source AND t1.agg_cost <= v_threshold)
+              AND EXISTS (SELECT 1 FROM temp_reachable_nodes t2 WHERE t2.node = w.target AND t2.agg_cost <= v_threshold)
+              AND ST_Length(w.the_geom) > 0.0001
+        ) AS pt;
         
-        RETURN QUERY SELECT 
-            v_threshold,
-            (p_walk_speed_kmh * v_threshold / 60.0 * 1000),
-            v_result,
-            ST_AsGeoJSON(v_result);
+        -- 根据点数量选择算法
+        IF v_cnt IS NULL OR v_cnt < 10 THEN
+            v_result := ST_Transform(
+                ST_Buffer(ST_Transform(v_origin, 3857), p_walk_speed_kmh * v_threshold / 60.0 * 1000),
+                4326
+            );
+        ELSE
+            v_result := COALESCE(
+                ST_ConcaveHull(v_collected, 0.5),
+                ST_ConvexHull(v_collected),
+                ST_Transform(
+                    ST_Buffer(ST_Transform(v_origin, 3857), p_walk_speed_kmh * v_threshold / 60.0 * 1000),
+                    4326
+                )
+            );
+        END IF;
+        
+        -- 返回结果
+        minutes := v_threshold;
+        distance_m := p_walk_speed_kmh * v_threshold / 60.0 * 1000;
+        geom := v_result;
+        geojson := ST_AsGeoJSON(v_result);
+        RETURN NEXT;
     END LOOP;
     
     -- 清理临时表
